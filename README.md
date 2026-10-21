@@ -11,7 +11,7 @@ Identity, grant, verification and audit core for HAPI — the first build slice 
 - **Profile** — scoped data disclosure (`/profile`), separate from authorisation. Returns only the intersection of what's requested and what the grant's `consentedFields` actually cover. Pull, not push — nothing is embedded in the credential itself.
 - **Audit** — every verify/profile/grant event is logged and viewable by the user (`/audit`).
 
-A minimal static consent UI lives in `public/` (no build step) so the whole loop is demoable in a browser.
+The personal app (consent UI) lives in `frontend/` — a React + TypeScript + Tailwind app. In dev it runs on its own Vite server and proxies API calls to the backend; in production it's built into `public/` and served directly by the backend.
 
 ## Quickstart
 
@@ -20,10 +20,12 @@ npm install
 docker compose up -d postgres   # Postgres on localhost:55432 (5432 was already taken locally)
 npx prisma migrate dev --name init
 npm run seed:partner             # prints a demo partner API key — save it, shown once
-npm run dev                      # http://localhost:4000
+npm run dev                      # backend on http://localhost:4000
+
+cd frontend && npm install && npm run dev   # personal app on http://localhost:5173
 ```
 
-Open `http://localhost:4000` for the consent UI, or drive the API directly — see the partner handshake example below.
+Open `http://localhost:5173` for the consent UI in dev (hot reload), or `http://localhost:4000` after running `npm run build` in `frontend/`. Drive the partner-facing API directly — see the handshake example below.
 
 ## Partner handshake example
 

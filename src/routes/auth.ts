@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { signUserSession } from "../lib/userAuth";
+import { AuthedRequest, requireUser, signUserSession } from "../lib/userAuth";
 
 export const authRouter = Router();
 
@@ -52,4 +52,12 @@ authRouter.post("/login", async (req, res) => {
 
   const token = signUserSession(user.id);
   res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+});
+
+// Lets the frontend restore a session from a stored token alone, without
+// re-sending credentials.
+authRouter.get("/me", requireUser, async (req: AuthedRequest, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+  if (!user) return res.status(401).json({ error: "user not found" });
+  res.json({ user: { id: user.id, email: user.email, name: user.name } });
 });
