@@ -1,6 +1,6 @@
 # HAPI core
 
-Identity, grant, verification and audit core for HAPI — the first build slice per `STRATEGY.md` §9 and the locked agent-integration model. No email/OTP, no partner SDK polish, no connector yet: just the consent/authorisation loop that everything else depends on.
+Identity, grant, verification, audit and partner SDK for HAPI — the first build slice per `STRATEGY.md` §9 and the locked agent-integration model. No email/OTP, no agent connector yet: just the consent/authorisation loop and the means for a partner site to verify it.
 
 ## Architecture
 
@@ -12,6 +12,8 @@ Identity, grant, verification and audit core for HAPI — the first build slice 
 - **Audit** — every verify/profile/grant event is logged and viewable by the user (`/audit`).
 
 The personal app (consent UI) lives in `frontend/` — a React + TypeScript + Tailwind app. In dev it runs on its own Vite server and proxies API calls to the backend; in production it's built into `public/` and served directly by the backend.
+
+Partner sites integrate via `sdk/` (`@hapi-id/sdk`) rather than calling `/verify` and `/profile` directly — a thin client plus an Express `requireGrant` middleware. `examples/demo-job-board` is a runnable partner site built on it, used both as SDK test coverage and as the integration reference for design partners.
 
 ## Quickstart
 
@@ -29,6 +31,18 @@ Open `http://localhost:5173` for the consent UI in dev (hot reload), or `http://
 
 ## Partner handshake example
 
+Via the SDK (recommended — see `sdk/README.md`):
+
+```ts
+const hapi = new HAPI({ apiKey: process.env.HAPI_API_KEY! });
+app.post("/apply", requireGrant(hapi, "job_application:submit"), async (req, res) => {
+  const profile = await hapi.getProfile(req.hapiCredential!, ["name", "email", "resume"]);
+  res.json({ status: "submitted", applicant: profile.profile });
+});
+```
+
+Or the raw HTTP contract the SDK wraps:
+
 ```bash
 # 1. Partner verifies a credential the agent presented
 curl -X POST http://localhost:4000/verify \
@@ -45,6 +59,6 @@ curl -X POST http://localhost:4000/profile \
 
 ## Not in this slice (by design, see STRATEGY.md)
 
-- Agent connectors (MCP server for Claude, etc.) — nothing presents credentials automatically yet.
+- Agent connectors (MCP server for Claude, etc.) — nothing presents credentials automatically yet; grants are issued and copied manually via the personal app or API for now.
 - Task-specific email/OTP handling.
-- Any real partner integration/SDK packaging — `/verify` and `/profile` are the contract, not yet published as an installable package.
+- Publishing the SDK to a package registry — `sdk/` is installed locally (`file:`) for now.

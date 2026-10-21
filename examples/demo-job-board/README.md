@@ -1,0 +1,10 @@
+# Demo job board
+
+A minimal partner site integrating `@hapi-id/sdk`, used to exercise the SDK end-to-end and as a reference for design partners.
+
+```bash
+npm install
+HAPI_API_KEY=<key from `npm run seed:partner` in the repo root> npm run dev   # http://localhost:4100
+```
+
+`POST /apply` is gated by `requireGrant(hapi, "job_application:submit")` — present a credential (issued via the personal app or `POST /grants` on the backend) in the `x-hapi-grant` header to simulate an authorised agent applying for a job.
