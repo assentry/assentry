@@ -1,0 +1,42 @@
+import { NextFunction, Request, Response } from "express";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET!;
+
+export interface UserSession {
+  sub: string; // userId
+}
+
+export function signUserSession(userId: string): string {
+  return jwt.sign({ sub: userId } satisfies UserSession, JWT_SECRET, {
+    expiresIn: "7d",
+  });
+}
+
+export interface AuthedRequest extends Request {
+  userId?: string;
+}
+
+// Session auth for the personal app (consent UI). Deliberately separate
+// from the partner/credential verification path below — these are two
+// different trust boundaries and must not share a code path.
+export function requireUser(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "missing bearer token" });
+  }
+  try {
+    const payload = jwt.verify(
+      header.slice("Bearer ".length),
+      JWT_SECRET
+    ) as UserSession;
+    req.userId = payload.sub;
+    next();
+  } catch {
+    return res.status(401).json({ error: "invalid or expired session" });
+  }
+}

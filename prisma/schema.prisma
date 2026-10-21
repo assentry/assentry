@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Layer 1: Identity. A person who owns HAPI identity and authorises agents.
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+
+  // Fields an agent may be consented to disclose to a verified partner,
+  // filtered per-grant by Grant.consentedFields.
+  profile      Json     @default("{}")
+
+  agents    Agent[]
+  grants    Grant[]
+  auditLogs AuditLog[]
+}
+
+// Layer 2: Agent. A connected AI orchestrator instance (Claude/GPT/Grok/etc),
+// treated as an untrusted bearer — never holds persistent identity itself.
+model Agent {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  platform  String // "claude" | "chatgpt" | "grok" | "other"
+  label     String? // user-facing name, e.g. "My Claude job-search assistant"
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  grants    Grant[]
+  auditLogs AuditLog[]
+}
+
+// The authorisation a user grants to an agent: scope + expiry + revocation.
+// This is the object a signed credential is issued against.
+model Grant {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  agentId         String
+  agent           Agent     @relation(fields: [agentId], references: [id])
+  scope           String // e.g. "job_application:submit"
+  consentedFields String[] @default([]) // profile fields this grant may disclose, e.g. ["name","email","resume"]
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  auditLogs AuditLog[]
+
+  @@index([userId])
+  @@index([agentId])
+}
+
+// Layer 3: Business. A participating site/service that verifies grants.
+model Partner {
+  id           String   @id @default(uuid())
+  name         String
+  apiKeyHash   String   @unique
+  allowedScopes String[] @default([]) // scopes this partner is permitted to verify
+  createdAt    DateTime @default(now())
+
+  auditLogs AuditLog[]
+}
+
+// Every verification/profile-access decision, independent of what the agent claims.
+model AuditLog {
+  id        String   @id @default(uuid())
+  // Nullable: a malformed or forged credential may not resolve to any real
+  // user/agent at all, and that denial still needs to be logged.
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  agentId   String?
+  agent     Agent?   @relation(fields: [agentId], references: [id])
+  grantId   String?
+  grant     Grant?   @relation(fields: [grantId], references: [id])
+  partnerId String?
+  partner   Partner? @relation(fields: [partnerId], references: [id])
+
+  action    String // e.g. "verify" | "profile_access" | "grant_created" | "grant_revoked"
+  result    String // "allowed" | "denied"
+  reason    String? // e.g. "expired" | "revoked" | "scope_mismatch" | "ok"
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([agentId])
+}
