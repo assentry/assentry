@@ -20,17 +20,31 @@ export function AgentsPanel({
   const [platform, setPlatform] = useState<Platform>("claude");
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
+  const [issuedSecret, setIssuedSecret] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function connect(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setIssuedSecret(null);
     try {
-      await api.post("/agents", { platform, label: label || undefined });
+      const data = await api.post<{ secret: string }>("/agents", {
+        platform,
+        label: label || undefined,
+      });
       setLabel("");
+      setIssuedSecret(data.secret);
       onChange();
     } finally {
       setBusy(false);
     }
+  }
+
+  function copySecret() {
+    if (!issuedSecret) return;
+    navigator.clipboard.writeText(issuedSecret);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   async function revoke(id: string) {
@@ -69,6 +83,23 @@ export function AgentsPanel({
             Connect
           </Button>
         </form>
+
+        {issuedSecret && (
+          <div className="mt-4 rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+            <p className="mb-2 text-sm font-medium text-indigo-900">
+              Connector key issued — paste this into your agent's HAPI connector config
+              (e.g. as <code>HAPI_AGENT_KEY</code>). It won't be shown again.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 overflow-x-auto rounded bg-white px-2 py-1.5 text-xs text-slate-700">
+                {issuedSecret}
+              </code>
+              <Button variant="secondary" onClick={copySecret} type="button">
+                {copied ? "Copied" : "Copy"}
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card>

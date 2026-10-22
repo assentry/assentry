@@ -1,17 +1,12 @@
-import crypto from "crypto";
 import { NextFunction, Request, Response } from "express";
+import { hashSecret } from "./secrets";
 import { prisma } from "./prisma";
 
 export interface PartnerRequest extends Request {
   partner?: { id: string; allowedScopes: string[] };
 }
 
-export function hashApiKey(apiKey: string): string {
-  // API keys are high-entropy, server-generated tokens (not user-chosen
-  // passwords), so a fast deterministic hash is appropriate here and lets
-  // us look the partner up directly instead of scanning with bcrypt.compare.
-  return crypto.createHash("sha256").update(apiKey).digest("hex");
-}
+export const hashApiKey = hashSecret;
 
 export async function requirePartner(
   req: PartnerRequest,

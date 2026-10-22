@@ -1,19 +1,22 @@
 # HAPI core
 
-Identity, grant, verification, audit and partner SDK for HAPI — the first build slice per `STRATEGY.md` §9 and the locked agent-integration model. No email/OTP, no agent connector yet: just the consent/authorisation loop and the means for a partner site to verify it.
+Identity, grant, verification, audit, partner SDK and agent connector for HAPI — the first build slice per `STRATEGY.md` §9 and the locked agent-integration model. No task-specific email/OTP yet: everything else in the committed v1 workflow (§9) now has a working, end-to-end-tested path.
 
 ## Architecture
 
 - **Identity** — `User` signup/login (`/auth`).
-- **Agent** — a connected AI orchestrator instance the user owns (`/agents`). Connecting an agent grants it nothing by itself.
-- **Grant** — the consent act: a user authorises a specific agent to do a specific scoped action until a specific time (`/grants`). Issuing a grant returns a signed **credential** — this is what an agent would carry and present, once a real connector exists.
+- **Agent** — a connected AI orchestrator instance the user owns (`/agents`). Connecting an agent issues it a connector key but grants it nothing by itself.
+- **Grant** — the consent act: a user authorises a specific agent to do a specific scoped action until a specific time (`/grants`). Issuing a grant returns a signed **credential** — what an agent carries and presents.
 - **Verify** — the partner-facing handshake (`/verify`, API-key authenticated). Always re-checks the database (revocation, expiry, agent status), never trusts the signed token alone.
 - **Profile** — scoped data disclosure (`/profile`), separate from authorisation. Returns only the intersection of what's requested and what the grant's `consentedFields` actually cover. Pull, not push — nothing is embedded in the credential itself.
-- **Audit** — every verify/profile/grant event is logged and viewable by the user (`/audit`).
+- **Audit** — every verify/profile/grant/credential event is logged and viewable by the user (`/audit`).
+- **Agent API** (`/agent/*`, connector-key authenticated) — lets the connector running inside the user's own AI list what it's currently authorised to do and fetch a fresh credential right before acting. Deliberately read-only: a connector can only *use* permissions the person already granted through the personal app, never request new ones (Option A from the design discussion — see `connector/README.md`).
 
 The personal app (consent UI) lives in `frontend/` — a React + TypeScript + Tailwind app. In dev it runs on its own Vite server and proxies API calls to the backend; in production it's built into `public/` and served directly by the backend.
 
 Partner sites integrate via `sdk/` (`@hapi-id/sdk`) rather than calling `/verify` and `/profile` directly — a thin client plus an Express `requireGrant` middleware. `examples/demo-job-board` is a runnable partner site built on it, used both as SDK test coverage and as the integration reference for design partners.
+
+AI agents integrate via `connector/` (`@hapi-id/connector`) — an MCP server exposing `list_my_authorizations` and `get_credential`. Add it to Claude Desktop (or any MCP host) with a connector key from the personal app, and the agent can use existing authorisations itself instead of a human copying a credential around manually.
 
 ## Quickstart
 
@@ -59,6 +62,6 @@ curl -X POST http://localhost:4000/profile \
 
 ## Not in this slice (by design, see STRATEGY.md)
 
-- Agent connectors (MCP server for Claude, etc.) — nothing presents credentials automatically yet; grants are issued and copied manually via the personal app or API for now.
 - Task-specific email/OTP handling.
-- Publishing the SDK to a package registry — `sdk/` is installed locally (`file:`) for now.
+- Publishing the SDK or connector to a package registry — both are installed locally (`file:`) for now.
+- The connector requesting *new* authorisations on the fly (Option B from the design discussion) — only pre-existing grants can be used today.

@@ -35,6 +35,12 @@ model Agent {
   createdAt DateTime  @default(now())
   revokedAt DateTime?
 
+  // Lets the connector (running inside the user's own AI) prove which
+  // agent connection it is, separate from the user's own login session.
+  // Nullable: agents connected before this existed have no connector secret
+  // until reconnected.
+  secretHash String? @unique
+
   grants    Grant[]
   auditLogs AuditLog[]
 }

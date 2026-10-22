@@ -1,6 +1,7 @@
 import cors from "cors";
 import "dotenv/config";
 import express from "express";
+import { agentApiRouter } from "./routes/agentApi";
 import { agentsRouter } from "./routes/agents";
 import { auditRouter } from "./routes/audit";
 import { authRouter } from "./routes/auth";
@@ -24,6 +25,9 @@ app.use("/audit", auditRouter);
 // Partner-facing (business SDK), API-key authenticated.
 app.use("/verify", verifyRouter);
 app.use("/profile", profileRouter);
+
+// Connector-facing (runs inside the user's own AI), agent-key authenticated.
+app.use("/agent", agentApiRouter);
 
 const port = Number(process.env.PORT) || 4000;
 app.listen(port, () => {
