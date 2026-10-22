@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { Agent, Platform } from "../lib/types";
-import { Badge, Button, Card, EmptyState, Input, Label, Select } from "./ui";
+import { Badge, Button, Card, EmptyState } from "./ui";
 
 const PLATFORM_LABELS: Record<Platform, string> = {
   claude: "Claude",
@@ -10,6 +10,10 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   other: "Other",
 };
 
+// The address a person pastes into their AI's own connector settings — not
+// a secret. Set VITE_BACKEND_ORIGIN for anything beyond local dev.
+const MCP_URL = `${import.meta.env.VITE_BACKEND_ORIGIN ?? "http://localhost:4000"}/mcp`;
+
 export function AgentsPanel({
   agents,
   onChange,
@@ -17,32 +21,10 @@ export function AgentsPanel({
   agents: Agent[];
   onChange: () => void;
 }) {
-  const [platform, setPlatform] = useState<Platform>("claude");
-  const [label, setLabel] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [issuedSecret, setIssuedSecret] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  async function connect(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setIssuedSecret(null);
-    try {
-      const data = await api.post<{ secret: string }>("/agents", {
-        platform,
-        label: label || undefined,
-      });
-      setLabel("");
-      setIssuedSecret(data.secret);
-      onChange();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function copySecret() {
-    if (!issuedSecret) return;
-    navigator.clipboard.writeText(issuedSecret);
+  function copyUrl() {
+    navigator.clipboard.writeText(MCP_URL);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
@@ -57,49 +39,17 @@ export function AgentsPanel({
       <Card>
         <h2 className="mb-1 text-sm font-semibold text-slate-900">Connect an agent</h2>
         <p className="mb-4 text-sm text-slate-500">
-          Register the AI orchestrator you want to authorise. Connecting it grants nothing by
-          itself — you still have to authorise specific actions below.
+          Open your AI's own settings (e.g. Claude's Connectors) and add this address. It'll send
+          you back here to log in and approve — you won't need to copy or type anything else.
         </p>
-        <form onSubmit={connect} className="flex flex-col gap-4 sm:flex-row sm:items-end">
-          <div className="sm:w-48">
-            <Label>Platform</Label>
-            <Select value={platform} onChange={(e) => setPlatform(e.target.value as Platform)}>
-              {Object.entries(PLATFORM_LABELS).map(([value, text]) => (
-                <option key={value} value={value}>
-                  {text}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="flex-1">
-            <Label>Label (optional)</Label>
-            <Input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="My job-search assistant"
-            />
-          </div>
-          <Button type="submit" disabled={busy}>
-            Connect
+        <div className="flex items-center gap-2">
+          <code className="flex-1 overflow-x-auto rounded bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
+            {MCP_URL}
+          </code>
+          <Button variant="secondary" onClick={copyUrl} type="button">
+            {copied ? "Copied" : "Copy"}
           </Button>
-        </form>
-
-        {issuedSecret && (
-          <div className="mt-4 rounded-lg border border-indigo-100 bg-indigo-50 p-4">
-            <p className="mb-2 text-sm font-medium text-indigo-900">
-              Connector key issued — paste this into your agent's HAPI connector config
-              (e.g. as <code>HAPI_AGENT_KEY</code>). It won't be shown again.
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 overflow-x-auto rounded bg-white px-2 py-1.5 text-xs text-slate-700">
-                {issuedSecret}
-              </code>
-              <Button variant="secondary" onClick={copySecret} type="button">
-                {copied ? "Copied" : "Copy"}
-              </Button>
-            </div>
-          </div>
-        )}
+        </div>
       </Card>
 
       <Card>

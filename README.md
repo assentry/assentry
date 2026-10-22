@@ -1,27 +1,23 @@
 # HAPI core
 
-Identity, grant, verification, audit, partner SDK and agent connector for HAPI — the first build slice per `STRATEGY.md` §9 and the locked agent-integration model. No task-specific email/OTP yet: everything else in the committed v1 workflow (§9) now has a working, end-to-end-tested path.
+Identity, grant, verification, audit, partner SDK and OAuth-connected agent access for HAPI — the first build slice per `STRATEGY.md` §9 and the locked agent-integration model. No task-specific email/OTP yet: everything else in the committed v1 workflow (§9) now has a working, end-to-end-tested path.
 
 ## Architecture
 
 - **Identity** — `User` signup/login (`/auth`).
-- **Agent** — a connected AI orchestrator instance the user owns (`/agents`). Connecting an agent issues it a connector key but grants it nothing by itself.
+- **Agent** — a connected AI orchestrator instance the user owns (`/agents`, list/revoke only). Agents are created exclusively through the OAuth consent flow below — there's no manual "create an agent" path, so no secret is ever generated for a human to copy.
 - **Grant** — the consent act: a user authorises a specific agent to do a specific scoped action until a specific time (`/grants`). Issuing a grant returns a signed **credential** — what an agent carries and presents.
 - **Verify** — the partner-facing handshake (`/verify`, API-key authenticated). Always re-checks the database (revocation, expiry, agent status), never trusts the signed token alone.
 - **Profile** — scoped data disclosure (`/profile`), separate from authorisation. Returns only the intersection of what's requested and what the grant's `consentedFields` actually cover. Pull, not push — nothing is embedded in the credential itself.
 - **Audit** — every verify/profile/grant/credential event is logged and viewable by the user (`/audit`).
-- **Agent API** (`/agent/*`, connector-key authenticated) — lets the connector running inside the user's own AI list what it's currently authorised to do and fetch a fresh credential right before acting. Deliberately read-only: a connector can only *use* permissions the person already granted through the personal app, never request new ones (Option A from the design discussion — see `connector/README.md`).
 - **OAuth** (`/oauth/*`, `/.well-known/*`) — lets an AI client connect itself the way a non-technical person would expect: no key ever shown on screen. Authorization Code + PKCE with Dynamic Client Registration; the consent screen is where an `Agent` actually gets created.
-- **Remote MCP server** (`/mcp`, bearer-token authenticated) — the hosted equivalent of `connector/`'s two tools, reached over OAuth instead of a locally configured key.
+- **Remote MCP server** (`/mcp`, bearer-token authenticated) — what the AI talks to after connecting: `list_my_authorizations` and `get_credential`. Deliberately read-only — an agent can only *use* permissions the person already granted through the personal app, never request new ones (Option A from the design discussion).
 
-The personal app (consent UI) lives in `frontend/` — a React + TypeScript + Tailwind app. In dev it runs on its own Vite server and proxies API calls to the backend; in production it's built into `public/` and served directly by the backend.
+The personal app (consent UI) lives in `frontend/` — a React + TypeScript + Tailwind app. In dev it runs on its own Vite server and proxies API calls to the backend; in production it's built into `public/` and served directly by the backend. Its Agents tab shows the `/mcp` address to paste into an AI's own connector settings — that's the only "setup" a person ever does; everything else happens via the OAuth login/consent redirect.
 
 Partner sites integrate via `sdk/` (`@hapi-id/sdk`) rather than calling `/verify` and `/profile` directly — a thin client plus an Express `requireGrant` middleware. `examples/demo-job-board` is a runnable partner site built on it, used both as SDK test coverage and as the integration reference for design partners.
 
-AI agents integrate two ways, both exposing the same two tools (`list_my_authorizations`, `get_credential`):
-
-- **Hosted, OAuth-connected (`/mcp`, `/oauth/*`)** — the real end-user path. The backend itself is a remote MCP server; a person connects it the way they'd connect any other app — "Connect" → log in → approve — and never sees or handles a key. Built on OAuth 2.1 (Authorization Code + PKCE, Dynamic Client Registration) rather than a proprietary scheme. See `scripts/test-oauth-flow.mjs` for a script that drives the whole flow without a human or a real MCP host.
-- **Local stdio connector (`connector/`, `@hapi-id/connector`)** — a developer/testing path. Requires manually pasting a connector key into an MCP host's config; not something to hand a non-technical user.
+See `scripts/test-oauth-flow.mjs` for a script that plays the real MCP client role end-to-end with no shortcuts — dynamic registration, login, consent, PKCE'd token exchange, and real MCP tool calls over the remote transport — useful for verifying the backend without a real AI client.
 
 ## Quickstart
 
@@ -68,5 +64,6 @@ curl -X POST http://localhost:4000/profile \
 ## Not in this slice (by design, see STRATEGY.md)
 
 - Task-specific email/OTP handling.
-- Publishing the SDK or connector to a package registry — both are installed locally (`file:`) for now.
-- The connector requesting *new* authorisations on the fly (Option B from the design discussion) — only pre-existing grants can be used today.
+- Publishing the SDK to a package registry — installed locally (`file:`) for now.
+- An agent requesting *new* authorisations on the fly (Option B from the design discussion) — only pre-existing grants can be used today.
+- Listing HAPI in each AI platform's official connector directory — today it's added as a custom/unlisted connector by URL.

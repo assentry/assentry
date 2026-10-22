@@ -6,31 +6,21 @@ export interface AgentApiRequest extends Request {
   agent?: { id: string; userId: string };
 }
 
-function extractAgentKey(req: Request): string | null {
-  const bearer = req.headers.authorization;
-  if (bearer?.startsWith("Bearer ")) return bearer.slice("Bearer ".length);
-
-  // The local stdio connector (connector/) predates OAuth support and still
-  // uses this custom header; kept for backward compatibility.
-  const legacy = req.headers["x-hapi-agent-key"];
-  if (typeof legacy === "string") return legacy;
-
-  return null;
-}
-
 // Authenticates the connector running inside a user's AI — distinct from
 // requireUser (the human's session) and requirePartner (a business's API
-// key). This is the identity Claude/GPT/Grok itself presents, whether that
-// key was copied in manually (legacy header) or issued via OAuth (bearer).
+// key). The bearer token here is always OAuth-issued (see routes/oauthToken.ts);
+// nothing in this system ever shows this value to a human to type or paste.
 export async function requireAgentKey(
   req: AgentApiRequest,
   res: Response,
   next: NextFunction
 ) {
-  const key = extractAgentKey(req);
-  if (!key) {
-    return res.status(401).json({ error: "missing agent credentials" });
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "missing bearer token" });
   }
+  const key = header.slice("Bearer ".length);
+
   const agent = await prisma.agent.findUnique({
     where: { secretHash: hashSecret(key) },
   });

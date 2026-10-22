@@ -35,10 +35,12 @@ model Agent {
   createdAt DateTime  @default(now())
   revokedAt DateTime?
 
-  // Lets the connector (running inside the user's own AI) prove which
-  // agent connection it is, separate from the user's own login session.
-  // Nullable: agents connected before this existed have no connector secret
-  // until reconnected.
+  // Lets this specific agent connection prove itself when it talks to HAPI
+  // on its own, separate from the user's own login session. Set via the
+  // OAuth token exchange (routes/oauthToken.ts) after consent — never
+  // generated for or shown to a human. Null between consent and token
+  // exchange (the brief window while the AI client completes the OAuth
+  // dance).
   secretHash String? @unique
 
   grants    Grant[]

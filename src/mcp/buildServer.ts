@@ -2,10 +2,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { issueCredentialForAgentGrant, listGrantsForAgent } from "../lib/agentActions";
 
-// The hosted equivalent of connector/ — same two capabilities, reached over
-// the OAuth-authenticated remote transport instead of a locally-run process
-// with a manually configured key. One McpServer instance per request
-// (stateless mode), scoped to whichever agent the bearer token resolved to.
+// The MCP server an AI agent talks to once it's OAuth-connected: two tools,
+// reached over the authenticated remote transport. One McpServer instance
+// per request (stateless mode), scoped to whichever agent the bearer token
+// resolved to.
 export function buildMcpServerForAgent(agentId: string): McpServer {
   const server = new McpServer({ name: "hapi", version: "0.1.0" });
 
