@@ -11,12 +11,17 @@ Identity, grant, verification, audit, partner SDK and agent connector for HAPI �
 - **Profile** — scoped data disclosure (`/profile`), separate from authorisation. Returns only the intersection of what's requested and what the grant's `consentedFields` actually cover. Pull, not push — nothing is embedded in the credential itself.
 - **Audit** — every verify/profile/grant/credential event is logged and viewable by the user (`/audit`).
 - **Agent API** (`/agent/*`, connector-key authenticated) — lets the connector running inside the user's own AI list what it's currently authorised to do and fetch a fresh credential right before acting. Deliberately read-only: a connector can only *use* permissions the person already granted through the personal app, never request new ones (Option A from the design discussion — see `connector/README.md`).
+- **OAuth** (`/oauth/*`, `/.well-known/*`) — lets an AI client connect itself the way a non-technical person would expect: no key ever shown on screen. Authorization Code + PKCE with Dynamic Client Registration; the consent screen is where an `Agent` actually gets created.
+- **Remote MCP server** (`/mcp`, bearer-token authenticated) — the hosted equivalent of `connector/`'s two tools, reached over OAuth instead of a locally configured key.
 
 The personal app (consent UI) lives in `frontend/` — a React + TypeScript + Tailwind app. In dev it runs on its own Vite server and proxies API calls to the backend; in production it's built into `public/` and served directly by the backend.
 
 Partner sites integrate via `sdk/` (`@hapi-id/sdk`) rather than calling `/verify` and `/profile` directly — a thin client plus an Express `requireGrant` middleware. `examples/demo-job-board` is a runnable partner site built on it, used both as SDK test coverage and as the integration reference for design partners.
 
-AI agents integrate via `connector/` (`@hapi-id/connector`) — an MCP server exposing `list_my_authorizations` and `get_credential`. Add it to Claude Desktop (or any MCP host) with a connector key from the personal app, and the agent can use existing authorisations itself instead of a human copying a credential around manually.
+AI agents integrate two ways, both exposing the same two tools (`list_my_authorizations`, `get_credential`):
+
+- **Hosted, OAuth-connected (`/mcp`, `/oauth/*`)** — the real end-user path. The backend itself is a remote MCP server; a person connects it the way they'd connect any other app — "Connect" → log in → approve — and never sees or handles a key. Built on OAuth 2.1 (Authorization Code + PKCE, Dynamic Client Registration) rather than a proprietary scheme. See `scripts/test-oauth-flow.mjs` for a script that drives the whole flow without a human or a real MCP host.
+- **Local stdio connector (`connector/`, `@hapi-id/connector`)** — a developer/testing path. Requires manually pasting a connector key into an MCP host's config; not something to hand a non-technical user.
 
 ## Quickstart
 

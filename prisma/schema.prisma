@@ -65,6 +65,38 @@ model Grant {
   @@index([agentId])
 }
 
+// An AI client (e.g. Claude) that has dynamically registered itself as an
+// OAuth client, so it can walk a person through the "Connect" flow without
+// HAPI pre-issuing it anything by hand. Public client only — no secret,
+// PKCE is mandatory instead.
+model OAuthClient {
+  id           String   @id @default(uuid())
+  clientId     String   @unique
+  clientName   String?
+  redirectUris String[]
+  createdAt    DateTime @default(now())
+
+  authorizationCodes OAuthAuthorizationCode[]
+}
+
+// A short-lived, single-use code from the consent screen, exchanged for an
+// access token at the token endpoint. This is where the Agent row actually
+// gets created — the OAuth consent *is* "connecting an agent".
+model OAuthAuthorizationCode {
+  id                  String      @id @default(uuid())
+  code                String      @unique
+  clientId            String
+  client              OAuthClient @relation(fields: [clientId], references: [id])
+  userId              String
+  agentId             String
+  redirectUri         String
+  codeChallenge       String
+  codeChallengeMethod String
+  expiresAt           DateTime
+  usedAt              DateTime?
+  createdAt           DateTime    @default(now())
+}
+
 // Layer 3: Business. A participating site/service that verifies grants.
 model Partner {
   id           String   @id @default(uuid())
