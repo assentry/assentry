@@ -15,6 +15,10 @@ import { profileRouter } from "./routes/profile";
 import { verifyRouter } from "./routes/verify";
 
 const app = express();
+// So req.protocol reports "https" correctly when running behind a tunnel
+// (ngrok, a real reverse proxy) that terminates TLS and forwards plain HTTP —
+// otherwise the OAuth discovery metadata would advertise http:// endpoints.
+app.set("trust proxy", true);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

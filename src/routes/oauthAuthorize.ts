@@ -18,9 +18,18 @@ const PLATFORM_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function page(title: string, body: string): string {
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>${title}</title>
+<html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
 <style>
   body { font-family: -apple-system, system-ui, sans-serif; max-width: 420px; margin: 80px auto; padding: 0 16px; color: #1a1a1a; }
   .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
@@ -56,6 +65,24 @@ async function resolveClient(clientId: string, redirectUri: string) {
   return client;
 }
 
+function hiddenOAuthFields(params: {
+  response_type: string;
+  client_id: string;
+  redirect_uri: string;
+  state: string;
+  code_challenge: string;
+  code_challenge_method: string;
+}): string {
+  return `
+    <input type="hidden" name="response_type" value="${escapeHtml(params.response_type)}">
+    <input type="hidden" name="client_id" value="${escapeHtml(params.client_id)}">
+    <input type="hidden" name="redirect_uri" value="${escapeHtml(params.redirect_uri)}">
+    <input type="hidden" name="state" value="${escapeHtml(params.state)}">
+    <input type="hidden" name="code_challenge" value="${escapeHtml(params.code_challenge)}">
+    <input type="hidden" name="code_challenge_method" value="${escapeHtml(params.code_challenge_method)}">
+  `;
+}
+
 // Entry point an MCP client sends a person's browser to. Validates the
 // request, then shows a login form (no session cookie yet) or the consent
 // screen (session cookie present) — this *is* the "Connect" experience: no
@@ -65,27 +92,28 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).send(page("Invalid request", "<p>This connection request is missing required parameters.</p>"));
   }
-  const { client_id, redirect_uri, state, code_challenge, code_challenge_method } = parsed.data;
+  const { response_type, client_id, redirect_uri, state, code_challenge, code_challenge_method } = parsed.data;
 
   const client = await resolveClient(client_id, redirect_uri);
   if (!client) {
     return res.status(400).send(page("Unknown app", "<p>This app isn't registered with HAPI, or its redirect address doesn't match.</p>"));
   }
 
-  const hidden = `
-    <input type="hidden" name="client_id" value="${client_id}">
-    <input type="hidden" name="redirect_uri" value="${redirect_uri}">
-    <input type="hidden" name="state" value="${state}">
-    <input type="hidden" name="code_challenge" value="${code_challenge}">
-    <input type="hidden" name="code_challenge_method" value="${code_challenge_method}">
-  `;
+  const hidden = hiddenOAuthFields({
+    response_type,
+    client_id,
+    redirect_uri,
+    state,
+    code_challenge,
+    code_challenge_method,
+  });
 
   const sessionUserId = await getSessionUserId(req);
   if (!sessionUserId) {
     return res.send(
       page(
         "Log in to HAPI",
-        `<p class="hint">${client.clientName ?? "An AI assistant"} wants to connect to your HAPI account.</p>
+        `<p class="hint">${escapeHtml(client.clientName ?? "An AI assistant")} wants to connect to your HAPI account.</p>
         <form method="post" action="/oauth/login">
           ${hidden}
           <label>Email</label><input name="email" type="email" required>
@@ -99,7 +127,7 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
   res.send(
     page(
       "Connect an agent",
-      `<p class="hint"><strong>${client.clientName ?? "An AI assistant"}</strong> wants to connect to your HAPI account. It won't be able to do anything until you separately authorise it for specific actions in the personal app.</p>
+      `<p class="hint"><strong>${escapeHtml(client.clientName ?? "An AI assistant")}</strong> wants to connect to your HAPI account. It won't be able to do anything until you separately authorise it for specific actions in the personal app.</p>
       <form method="post" action="/oauth/authorize">
         ${hidden}
         <label>Which AI is this?</label>
@@ -120,6 +148,7 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+  response_type: z.literal("code"),
   client_id: z.string(),
   redirect_uri: z.string().url(),
   state: z.string().optional().default(""),
@@ -143,11 +172,7 @@ oauthAuthorizeRouter.post("/login", async (req, res) => {
           "Log in to HAPI",
           `<p class="error">Incorrect email or password.</p>
           <form method="post" action="/oauth/login">
-            <input type="hidden" name="client_id" value="${oauthParams.client_id}">
-            <input type="hidden" name="redirect_uri" value="${oauthParams.redirect_uri}">
-            <input type="hidden" name="state" value="${oauthParams.state}">
-            <input type="hidden" name="code_challenge" value="${oauthParams.code_challenge}">
-            <input type="hidden" name="code_challenge_method" value="${oauthParams.code_challenge_method}">
+            ${hiddenOAuthFields(oauthParams)}
             <label>Email</label><input name="email" type="email" required>
             <label>Password</label><input name="password" type="password" required>
             <button class="approve" type="submit">Log in</button>
