@@ -2,21 +2,13 @@ import { useEffect, useState } from "react";
 import { AgentsPanel } from "../components/AgentsPanel";
 import { AuditPanel } from "../components/AuditPanel";
 import { GrantsPanel } from "../components/GrantsPanel";
-import { Logo } from "../components/Logo";
-import { Button } from "../components/ui";
+import { OverviewPanel } from "../components/OverviewPanel";
+import { Sidebar, type Tab } from "../components/Sidebar";
 import { api, clearToken } from "../lib/api";
 import type { Agent, AuditLog, Grant, User } from "../lib/types";
 
-type Tab = "agents" | "grants" | "audit";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "agents", label: "Agents" },
-  { id: "grants", label: "Authorisations" },
-  { id: "audit", label: "Activity" },
-];
-
 export function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
-  const [tab, setTab] = useState<Tab>("agents");
+  const [tab, setTab] = useState<Tab>("overview");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [grants, setGrants] = useState<Grant[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -46,42 +38,29 @@ export function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => vo
     onSignOut();
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
-          <Logo />
-          <div className="flex items-center gap-3 text-sm text-slate-500">
-            <span>{user.email}</span>
-            <Button variant="ghost" onClick={signOut}>
-              Sign out
-            </Button>
-          </div>
-        </div>
-        <div className="mx-auto flex max-w-4xl gap-1 px-4">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
-                tab === t.id
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </header>
+  const TITLES: Record<Tab, string> = {
+    overview: "Overview",
+    agents: "Agents",
+    grants: "Authorisations",
+    audit: "Activity",
+  };
 
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        {tab === "agents" && <AgentsPanel agents={agents} onChange={refreshAll} />}
-        {tab === "grants" && (
-          <GrantsPanel agents={agents} grants={grants} onChange={refreshAll} />
-        )}
-        {tab === "audit" && <AuditPanel logs={logs} />}
-      </main>
+  return (
+    <div className="flex min-h-screen bg-slate-50">
+      <Sidebar tab={tab} onTabChange={setTab} email={user.email} onSignOut={signOut} />
+
+      <div className="flex-1 overflow-y-auto">
+        <header className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/80 px-8 py-4 backdrop-blur">
+          <h2 className="text-sm font-medium text-slate-500">{TITLES[tab]}</h2>
+        </header>
+
+        <main className="mx-auto max-w-4xl px-8 py-8">
+          {tab === "overview" && <OverviewPanel user={user} agents={agents} grants={grants} logs={logs} />}
+          {tab === "agents" && <AgentsPanel agents={agents} onChange={refreshAll} />}
+          {tab === "grants" && <GrantsPanel agents={agents} grants={grants} onChange={refreshAll} />}
+          {tab === "audit" && <AuditPanel logs={logs} />}
+        </main>
+      </div>
     </div>
   );
 }
