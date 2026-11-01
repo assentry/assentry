@@ -17,17 +17,46 @@ app.use(express.json());
 // the result of exchangeLinkCode.
 const accountLinks = new Map<string, { hapiUserId: string }>();
 
+// A second, separate in-memory "database" for the *other* way of handling
+// case 2 — no HAPI-hosted confirmation screen at all. The site decides for
+// itself, using only data the /verify + /profile handshake already
+// discloses, whether this is an existing account or a new one. This is the
+// primary intended path per STRATEGY.md; explicit linking above is the
+// stronger-assurance alternative, not a replacement for this.
+//
+// Known gap, accepted for this prototype: HAPI does not currently verify a
+// user's email, so matching on it here means trusting an unverified claim.
+// A real deployment needs HAPI to expose which fields are actually verified
+// before a partner should treat a match as authoritative.
+const accountsByEmail = new Map<string, { hapiUserId: string; createdAt: Date }>();
+
 // This is the only HAPI-specific code a partner site needs: gate the route,
 // then use whatever the grant proves to decide what to skip (here, there's
-// no separate signup/OTP step at all for an authorised agent).
+// no separate signup/OTP step at all for an authorised agent). Account
+// matching/creation below is ordinary application logic, not anything HAPI
+// mediates — HAPI's job stopped the moment requireGrant and getProfile
+// returned.
 app.post("/apply", requireGrant(hapi, "job_application:submit"), async (req: HAPIRequest, res) => {
   const profile = await hapi.getProfile(req.hapiCredential!, ["name", "email", "resume"]);
   if (!profile.valid) {
     return res.status(403).json({ error: "could not read applicant profile", reason: profile.reason });
   }
 
+  const email = profile.profile.email as string | undefined;
+  let accountStatus: "matched" | "created" | "unknown" = "unknown";
+  if (email) {
+    const existing = accountsByEmail.get(email);
+    if (existing) {
+      accountStatus = "matched";
+    } else {
+      accountsByEmail.set(email, { hapiUserId: req.hapiGrant!.userId, createdAt: new Date() });
+      accountStatus = "created";
+    }
+  }
+
   res.json({
     status: "submitted",
+    accountStatus,
     applicant: profile.profile,
     authorisedUntil: req.hapiGrant!.expiresAt,
   });
