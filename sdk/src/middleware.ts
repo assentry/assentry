@@ -15,8 +15,31 @@ export interface HAPIRequest extends Request {
 }
 
 export interface RequireGrantOptions {
-  /** Header the agent's credential arrives in. Defaults to "x-hapi-grant". */
+  /**
+   * Override the header the credential is read from. Defaults to the
+   * standard `Authorization: Bearer <credential>` convention — the one any
+   * reasonably capable agent will already try without being told a
+   * site-specific trick. Only set this if you have a real reason to deviate.
+   */
   credentialHeader?: string;
+}
+
+/**
+ * Reads the credential a request is carrying, using the standard
+ * `Authorization: Bearer` convention by default. Exported on its own (not
+ * just used internally by `requireGrant`) for routes that need to check a
+ * credential *conditionally* — e.g. a page that also accepts a normal
+ * logged-in session, where you don't want to unconditionally reject
+ * requests with no credential the way `requireGrant` does.
+ */
+export function getCredentialFromRequest(req: Request, options: RequireGrantOptions = {}): string | null {
+  if (options.credentialHeader) {
+    const value = req.headers[options.credentialHeader.toLowerCase()];
+    return typeof value === "string" ? value : null;
+  }
+  const auth = req.headers.authorization;
+  if (auth?.startsWith("Bearer ")) return auth.slice("Bearer ".length);
+  return null;
 }
 
 /**
@@ -26,11 +49,9 @@ export interface RequireGrantOptions {
  * normal fallback flow (login, CAPTCHA, manual signup) still applies.
  */
 export function requireGrant(hapi: HAPI, action: string, options: RequireGrantOptions = {}) {
-  const header = (options.credentialHeader ?? "x-hapi-grant").toLowerCase();
-
   return async (req: HAPIRequest, res: Response, next: NextFunction) => {
-    const credential = req.headers[header];
-    if (typeof credential !== "string") {
+    const credential = getCredentialFromRequest(req, options);
+    if (!credential) {
       return res.status(401).json({ error: "missing HAPI credential" });
     }
 

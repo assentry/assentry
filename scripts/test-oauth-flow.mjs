@@ -160,7 +160,7 @@ async function main() {
   console.log("\n== 9. present that credential to the real demo job board ==");
   const applyRes = await fetch("http://localhost:4100/apply", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-hapi-grant": credential },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${credential}` },
     body: "{}",
   });
   console.log(await applyRes.json());

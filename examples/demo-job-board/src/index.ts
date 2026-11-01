@@ -1,4 +1,4 @@
-import { HAPI, HAPIRequest, HAPIRequestError, requireGrant } from "@hapi-id/sdk";
+import { getCredentialFromRequest, HAPI, HAPIRequest, HAPIRequestError, requireGrant } from "@hapi-id/sdk";
 import bcrypt from "bcrypt";
 import cookieParser from "cookie-parser";
 import express from "express";
@@ -165,8 +165,9 @@ app.post("/login", async (req, res) => {
 
 // Protected content, reachable two completely independent ways: a human
 // who logged in the ordinary way (session cookie), or an agent presenting
-// a HAPI credential (query param — no session, no password, re-verified
-// live on every visit). Neither path knows or cares that the other exists;
+// a HAPI credential (the standard Authorization: Bearer header, via the
+// same SDK helper /apply's requireGrant uses internally — no site-specific
+// convention to guess). Neither path knows or cares that the other exists;
 // that's the point of HAPI coexisting with a site's existing login rather
 // than replacing it.
 app.get("/dashboard", async (req, res) => {
@@ -175,7 +176,7 @@ app.get("/dashboard", async (req, res) => {
     return res.send(renderDashboard({ name: sessionEmail, accountStatus: null, via: "your account login" }));
   }
 
-  const credential = String(req.query.credential ?? "");
+  const credential = getCredentialFromRequest(req);
   if (!credential) return res.redirect("/login");
 
   const verification = await hapi.verify(credential, "job_application:submit");

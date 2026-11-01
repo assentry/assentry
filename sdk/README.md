@@ -29,7 +29,9 @@ app.post("/apply", requireGrant(hapi, "job_application:submit"), async (req: HAP
 });
 ```
 
-If you'd rather not use the Express middleware, call `hapi.verify(credential, action)` and `hapi.getProfile(credential, fields)` directly — `requireGrant` is a thin convenience wrapper over both.
+An agent presents its credential as a standard `Authorization: Bearer <credential>` header — `requireGrant` expects this by default, which matters: it's the convention any reasonably capable agent will already use without needing a site-specific instruction, so there's nothing for you to document or for an agent to guess.
+
+If you'd rather not use the Express middleware, call `hapi.verify(credential, action)` and `hapi.getProfile(credential, fields)` directly — `requireGrant` is a thin convenience wrapper over both. If you need to check a credential *conditionally* instead of unconditionally requiring one (e.g. a page that also accepts a normal logged-in session, like `../examples/demo-job-board`'s `/dashboard`), use the lower-level `getCredentialFromRequest(req)` that `requireGrant` uses internally — same convention, without the automatic 401.
 
 ## Linking an existing account
 
