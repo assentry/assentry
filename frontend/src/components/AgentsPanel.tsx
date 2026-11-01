@@ -11,8 +11,11 @@ const PLATFORM_LABELS: Record<Platform, string> = {
 };
 
 // The address a person pastes into their AI's own connector settings — not
-// a secret. Set VITE_BACKEND_ORIGIN for anything beyond local dev.
-const MCP_URL = `${import.meta.env.VITE_BACKEND_ORIGIN ?? "http://localhost:4000"}/mcp`;
+// a secret. In production this app is served by the backend itself, so its
+// own origin *is* the backend's address — correct automatically on any
+// domain, with no per-deployment config. Only the Vite dev server (a
+// different origin, :5173) needs an explicit override.
+const MCP_URL = `${import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_ORIGIN ?? "http://localhost:4000") : window.location.origin}/mcp`;
 
 export function AgentsPanel({
   agents,
