@@ -4,7 +4,9 @@
   "private": true,
   "description": "Example partner site integrating the HAPI SDK, for design-partner demos and SDK testing",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts"
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc -p .",
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@hapi-id/sdk": "file:../../sdk",

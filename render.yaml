@@ -1,0 +1,39 @@
+databases:
+  - name: hapi-db
+    plan: free
+    databaseName: hapi
+    user: hapi
+
+services:
+  - type: web
+    name: hapi-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install && npx prisma generate && npm run build && cd frontend && npm install && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hapi-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: hapi-demo-job-board
+    runtime: node
+    plan: free
+    buildCommand: cd sdk && npm install && npm run build && cd ../examples/demo-job-board && npm install && npm run build
+    startCommand: node examples/demo-job-board/dist/index.js
+    envVars:
+      # Set these three after hapi-backend's first deploy: HAPI_BASE_URL is
+      # its public Render URL, HAPI_API_KEY and HAPI_PARTNER_PUBLIC_ID come
+      # from running `npm run seed:partner` against the deployed database.
+      - key: HAPI_BASE_URL
+        sync: false
+      - key: HAPI_API_KEY
+        sync: false
+      - key: HAPI_PARTNER_PUBLIC_ID
+        sync: false
