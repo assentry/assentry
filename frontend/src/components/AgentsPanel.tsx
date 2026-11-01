@@ -1,3 +1,4 @@
+import { Bot } from "lucide-react";
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { Agent, Platform } from "../lib/types";
@@ -8,6 +9,13 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   chatgpt: "ChatGPT",
   grok: "Grok",
   other: "Other",
+};
+
+const PLATFORM_COLORS: Record<Platform, string> = {
+  claude: "bg-orange-50 text-orange-600",
+  chatgpt: "bg-emerald-50 text-emerald-600",
+  grok: "bg-slate-100 text-slate-600",
+  other: "bg-indigo-50 text-indigo-600",
 };
 
 // The address a person pastes into their AI's own connector settings — not
@@ -62,14 +70,21 @@ export function AgentsPanel({
         ) : (
           <ul className="divide-y divide-slate-100">
             {agents.map((agent) => (
-              <li key={agent.id} className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    {agent.label || PLATFORM_LABELS[agent.platform]}
-                  </p>
-                  <p className="text-xs text-slate-500">{PLATFORM_LABELS[agent.platform]}</p>
+              <li key={agent.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${PLATFORM_COLORS[agent.platform]}`}
+                  >
+                    <Bot className="h-4 w-4" strokeWidth={2} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">
+                      {agent.label || PLATFORM_LABELS[agent.platform]}
+                    </p>
+                    <p className="text-xs text-slate-500">{PLATFORM_LABELS[agent.platform]}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex shrink-0 items-center gap-3">
                   <Badge tone={agent.revokedAt ? "neutral" : "success"}>
                     {agent.revokedAt ? "Revoked" : "Active"}
                   </Badge>

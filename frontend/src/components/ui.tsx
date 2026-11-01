@@ -2,7 +2,9 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAt
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-900/[0.03] ${className}`}>
+    <div
+      className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-900/[0.03] transition-shadow duration-200 hover:shadow-md hover:shadow-slate-900/[0.06] ${className}`}
+    >
       {children}
     </div>
   );

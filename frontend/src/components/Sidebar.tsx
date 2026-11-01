@@ -1,4 +1,5 @@
-import { Activity, Bot, LayoutGrid, LogOut, ShieldCheck } from "lucide-react";
+import { Activity, Bot, LayoutGrid, LogOut, Menu, ShieldCheck, X } from "lucide-react";
+import { useState } from "react";
 import { Logo } from "./Logo";
 
 export type Tab = "overview" | "agents" | "grants" | "audit";
@@ -21,17 +22,33 @@ export function Sidebar({
   email: string;
   onSignOut: () => void;
 }) {
-  return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col justify-between bg-slate-900 px-4 py-6">
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  function selectTab(id: Tab) {
+    onTabChange(id);
+    setMobileOpen(false);
+  }
+
+  const content = (
+    <>
       <div>
-        <Logo variant="dark" className="mb-8 px-2" />
+        <div className="mb-8 flex items-center justify-between px-2">
+          <Logo variant="dark" />
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="rounded-md p-1 text-slate-400 hover:bg-white/5 hover:text-slate-200 lg:hidden"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
         <nav className="space-y-1">
           {NAV.map(({ id, label, icon: Icon }) => {
             const active = tab === id;
             return (
               <button
                 key={id}
-                onClick={() => onTabChange(id)}
+                onClick={() => selectTab(id)}
                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   active
                     ? "bg-white/10 text-white"
@@ -56,6 +73,37 @@ export function Sidebar({
           Sign out
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile top bar */}
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
+        <Logo />
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </header>
+
+      {/* Mobile drawer + backdrop */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col justify-between bg-slate-900 px-4 py-6 shadow-xl">
+            {content}
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop sidebar */}
+      <aside className="hidden h-screen w-64 shrink-0 flex-col justify-between bg-slate-900 px-4 py-6 lg:flex">
+        {content}
+      </aside>
+    </>
   );
 }
