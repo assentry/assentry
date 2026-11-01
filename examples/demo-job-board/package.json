@@ -10,11 +10,9 @@
   },
   "dependencies": {
     "@hapi-id/sdk": "file:../../sdk",
-    "cookie-parser": "^1.4.7",
     "express": "^4.19.2"
   },
   "devDependencies": {
-    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^4.17.21",
     "@types/node": "^20.14.9",
     "ts-node-dev": "^2.0.0",
