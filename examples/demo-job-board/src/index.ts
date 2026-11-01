@@ -135,6 +135,13 @@ app.get("/dashboard", async (req, res) => {
   res.send(renderDashboard({ name, accountStatus, via: "an authorised HAPI agent" }));
 });
 
+// A fresh code every single visit — not cached, not session-sticky — so
+// it's obvious (to a human or an agent reporting back what it saw) that
+// this content is actually being read live each time, not reused.
+function randomCode(): string {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
 function renderDashboard(params: {
   name: string | undefined;
   accountStatus: "matched" | "created" | "unknown" | null;
@@ -148,7 +155,7 @@ function renderDashboard(params: {
   <h2>Welcome${params.name ? `, ${params.name}` : ""}.</h2>
   <p>You got here via <strong>${params.via}</strong>.</p>
   ${params.accountStatus ? `<p>Account on this site: <strong>${params.accountStatus}</strong></p>` : ""}
-  <div class="secret">🔒 Secret content only visible after login: the janitor's closet code is 4821.</div>
+  <div class="secret">🔒 Secret content only visible after login: the janitor's closet code is ${randomCode()}.</div>
 </body></html>`;
 }
 
