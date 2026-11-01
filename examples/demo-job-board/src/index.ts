@@ -8,7 +8,10 @@ const hapi = new HAPI({
   partnerId: process.env.HAPI_PARTNER_PUBLIC_ID,
 });
 
-const publicBaseUrl = process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 4100}`;
+// RENDER_EXTERNAL_URL is injected automatically by Render into every web
+// service — no manual config needed in production.
+const publicBaseUrl =
+  process.env.RENDER_EXTERNAL_URL ?? process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 4100}`;
 
 const app = express();
 app.use(express.json());
