@@ -1,4 +1,5 @@
 import { HAPI, HAPIRequest, HAPIRequestError, requireGrant } from "@hapi-id/sdk";
+import cookieParser from "cookie-parser";
 import express from "express";
 
 const hapi = new HAPI({
@@ -7,9 +8,12 @@ const hapi = new HAPI({
   partnerId: process.env.HAPI_PARTNER_PUBLIC_ID,
 });
 
+const publicBaseUrl = process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 4100}`;
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
 // Stands in for this site's own user database. Keyed by the site's own
 // account id, holding whatever HAPI userId has been linked to it (case 2 —
@@ -30,6 +34,12 @@ const accountLinks = new Map<string, { hapiUserId: string }>();
 // A real deployment needs HAPI to expose which fields are actually verified
 // before a partner should treat a match as authoritative.
 const accountsByEmail = new Map<string, { hapiUserId: string; createdAt: Date }>();
+
+// This site's own, completely ordinary account database — traditional
+// email/password, nothing HAPI-aware about it at all. Fake-validated for
+// this demo (any password is accepted) since the point is to show HAPI
+// coexisting with a normal login, not to build a real auth system twice.
+const traditionalAccounts = new Set<string>();
 
 function matchOrCreateAccount(email: string | undefined, hapiUserId: string): "matched" | "created" | "unknown" {
   if (!email) return "unknown";
@@ -60,35 +70,52 @@ app.post("/apply", requireGrant(hapi, "job_application:submit"), async (req: HAP
   });
 });
 
-// A real browser-facing login page, protecting real content — this is the
-// "login gate" scenario made concrete: instead of a username/password
-// field, the agent presents the HAPI credential it already holds. No
-// session cookie needed for this demo; /dashboard independently verifies
-// whatever credential it's given, same as /apply does.
+// This site's own, completely ordinary login — exactly what it would look
+// like with no HAPI integration at all. A human (not an agent) uses this.
+// Fake-validated for the demo: any email/password combination works, since
+// there's no real account system here — the point is to show this
+// coexisting unchanged alongside the HAPI path below, not to build a second
+// real auth system.
 app.get("/login", (_req, res) => {
   res.send(`<!doctype html>
 <html><head><meta charset="utf-8"><title>Demo Job Board — log in</title>
-<style>body{font-family:-apple-system,system-ui,sans-serif;max-width:420px;margin:80px auto;padding:0 16px}
-textarea{width:100%;height:80px;margin-top:8px;box-sizing:border-box}
-button{margin-top:12px;padding:8px 16px}</style></head>
+<style>body{font-family:-apple-system,system-ui,sans-serif;max-width:360px;margin:80px auto;padding:0 16px}
+input{width:100%;padding:8px;margin-top:4px;box-sizing:border-box}
+label{display:block;margin-top:12px;font-size:0.85rem;color:#475569}
+button{margin-top:16px;padding:8px 16px}</style></head>
 <body>
   <h2>Demo Job Board</h2>
-  <p>No username or password here — paste the credential your agent fetched from HAPI instead.</p>
+  <p>Sign in to your account.</p>
   <form method="post" action="/login">
-    <label>HAPI credential</label>
-    <textarea name="credential" required></textarea>
+    <label>Email</label>
+    <input name="email" type="email" required>
+    <label>Password</label>
+    <input name="password" type="password" required>
     <button type="submit">Log in</button>
   </form>
 </body></html>`);
 });
 
-app.post("/login", async (req, res) => {
-  const credential = String(req.body.credential ?? "");
-  if (!credential) return res.status(400).send("missing credential");
-  res.redirect(`/dashboard?credential=${encodeURIComponent(credential)}`);
+app.post("/login", (req, res) => {
+  const email = String(req.body.email ?? "");
+  if (!email) return res.status(400).send("missing email");
+  traditionalAccounts.add(email);
+  res.cookie("session_email", email, { httpOnly: true, sameSite: "lax" });
+  res.redirect("/dashboard");
 });
 
+// Protected content, reachable two completely independent ways: a human
+// who logged in the ordinary way (session cookie), or an agent presenting
+// a HAPI credential (query param — no session, no password, re-verified
+// live on every visit). Neither path knows or cares that the other exists;
+// that's the point of HAPI coexisting with a site's existing login rather
+// than replacing it.
 app.get("/dashboard", async (req, res) => {
+  const sessionEmail = req.cookies?.session_email as string | undefined;
+  if (sessionEmail && traditionalAccounts.has(sessionEmail)) {
+    return res.send(renderDashboard({ name: sessionEmail, accountStatus: null, via: "your account login" }));
+  }
+
   const credential = String(req.query.credential ?? "");
   if (!credential) return res.redirect("/login");
 
@@ -102,17 +129,25 @@ app.get("/dashboard", async (req, res) => {
   const email = profile.valid ? (profile.profile.email as string | undefined) : undefined;
   const accountStatus = matchOrCreateAccount(email, verification.userId);
 
-  res.send(`<!doctype html>
+  res.send(renderDashboard({ name, accountStatus, via: "an authorised HAPI agent" }));
+});
+
+function renderDashboard(params: {
+  name: string | undefined;
+  accountStatus: "matched" | "created" | "unknown" | null;
+  via: string;
+}): string {
+  return `<!doctype html>
 <html><head><meta charset="utf-8"><title>Dashboard</title>
 <style>body{font-family:-apple-system,system-ui,sans-serif;max-width:480px;margin:80px auto;padding:0 16px}
 .secret{background:#f1f5f9;border-radius:8px;padding:16px;margin-top:16px}</style></head>
 <body>
-  <h2>Welcome${name ? `, ${name}` : ""}.</h2>
-  <p>You're in — this page is only reachable with a valid HAPI credential, same handshake as /apply.</p>
-  <p>Account on this site: <strong>${accountStatus}</strong></p>
+  <h2>Welcome${params.name ? `, ${params.name}` : ""}.</h2>
+  <p>You got here via <strong>${params.via}</strong>.</p>
+  ${params.accountStatus ? `<p>Account on this site: <strong>${params.accountStatus}</strong></p>` : ""}
   <div class="secret">🔒 Secret content only visible after login: the janitor's closet code is 4821.</div>
-</body></html>`);
-});
+</body></html>`;
+}
 
 // Case 2 demo: an already-logged-in user on this site clicks "Link your
 // HAPI account." `accountId` stands in for this site's own session —
@@ -123,7 +158,7 @@ app.get("/link/start", (req, res) => {
   if (!accountId) return res.status(400).send("missing accountId");
 
   const url = hapi.getAccountLinkUrl({
-    redirectUri: `http://localhost:${port}/link/callback`,
+    redirectUri: `${publicBaseUrl}/link/callback`,
     state: accountId,
   });
   res.redirect(url);
