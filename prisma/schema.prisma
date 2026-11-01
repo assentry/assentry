@@ -107,7 +107,36 @@ model Partner {
   allowedScopes String[] @default([]) // scopes this partner is permitted to verify
   createdAt    DateTime @default(now())
 
+  // Safe to put in a browser-facing URL (unlike id/apiKeyHash semantics —
+  // id already is, but this makes the "safe to expose" contract explicit
+  // for the account-linking flow below).
+  publicId      String   @unique @default(uuid())
+  // Where this partner is allowed to be redirected back to after an
+  // account-link confirmation — validated the same way OAuthClient
+  // redirect_uris are, to prevent an attacker redirecting a link code
+  // somewhere unregistered.
+  linkRedirectUris String[] @default([])
+
   auditLogs AuditLog[]
+  accountLinkCodes AccountLinkCode[]
+}
+
+// Case 2 from STRATEGY.md's "what 'the agent logs in' actually means":
+// a one-time, human-driven confirmation that a HAPI user is the same
+// person as an existing account on a participating site. The partner
+// exchanges this with its own API key (a confidential client), unlike the
+// agent connector's public-client PKCE flow — the partner already has a
+// secret for server-to-server use.
+model AccountLinkCode {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  partnerId   String
+  partner     Partner   @relation(fields: [partnerId], references: [id])
+  userId      String
+  redirectUri String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
 }
 
 // Every verification/profile-access decision, independent of what the agent claims.

@@ -14,3 +14,7 @@ export type VerifyResult =
 export type ProfileResult =
   | { valid: true; profile: Record<string, unknown> }
   | { valid: false; reason: DenialReason };
+
+export interface LinkTokenResult {
+  userId: string;
+}

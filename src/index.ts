@@ -6,6 +6,7 @@ import { agentsRouter } from "./routes/agents";
 import { auditRouter } from "./routes/audit";
 import { authRouter } from "./routes/auth";
 import { grantsRouter } from "./routes/grants";
+import { linkRouter } from "./routes/link";
 import { mcpHttpRouter } from "./routes/mcpHttp";
 import { oauthAuthorizeRouter } from "./routes/oauthAuthorize";
 import { oauthClientsRouter } from "./routes/oauthClients";
@@ -48,6 +49,10 @@ app.use("/oauth", oauthTokenRouter);
 // The hosted remote MCP server itself, reached with the bearer token from
 // the OAuth exchange above.
 app.use("/mcp", mcpHttpRouter);
+
+// Account linking (case 2 — see STRATEGY.md): a partner's already-logged-in
+// human confirms their HAPI identity matches an existing account there.
+app.use("/link", linkRouter);
 
 const port = Number(process.env.PORT) || 4000;
 app.listen(port, () => {

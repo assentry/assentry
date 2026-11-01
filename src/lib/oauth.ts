@@ -25,6 +25,14 @@ export function generateAuthorizationCode(): string {
   return crypto.randomBytes(32).toString("base64url");
 }
 
+// Shared by the OAuth consent pages and the account-linking pages — both
+// are plain server-rendered flows gated on the same browser session cookie.
+export function getBrowserSessionUserId(req: { cookies?: Record<string, string> }): string | null {
+  const cookie = req.cookies?.[OAUTH_SESSION_COOKIE];
+  if (!cookie) return null;
+  return verifyOAuthSession(cookie);
+}
+
 function base64url(input: Buffer): string {
   return input.toString("base64url");
 }

@@ -201,6 +201,16 @@ The platform has three layers: **Identity** (the personal app, §3B — where th
   - **Verification at the Business layer must be independent of what the agent claims** — the business checks the credential's signature/scope/expiry (or calls back to HAPI) every time, regardless of the agent's behaviour. This is what makes consent and auditability (§8.3) actually enforceable rather than aspirational.
 - **The mechanism is a handshake, not credential injection.** When an agent acts on a participating site, the trust decision is a direct exchange between that site's SDK integration and HAPI's identity/authorisation service — verifying the signed, scoped credential. The agent never holds, fills in, or injects the user's actual site password into a login/registration form; it only carries and presents the HAPI-issued authorisation. This distinction is canonical and should be used in all external-facing descriptions of the flow (see §4, step 7).
 
+### What "the agent logs in" actually means (locked, 2026-11-01)
+
+A participating site having the SDK installed does not by itself mean an agent can get past every login/signup wall on that site. Three cases, deliberately scoped:
+
+1. **A new, agent-specific flow the site built** (e.g. "create an account and submit an application"). Works today, no password involved — the site's own code treats a valid HAPI credential as sufficient to create an account or session. This is what `examples/demo-job-board` demonstrates.
+2. **An existing account the user had before connecting HAPI.** Requires a one-time, human-driven **account-linking step**: the user, already logged into their existing account on the participating site, confirms "this is me" to HAPI once; the site stores the resulting HAPI `userId` against its own account record. After that, a valid credential resolving to that `userId` is sufficient proof for that specific existing account — still no password. Not yet built before this entry; being added now (`/link/authorize`, `/link/token` on the backend).
+3. **A plain login gate the site never modified for HAPI.** Out of scope, permanently, by design. HAPI never stores or hands over a user's actual site password, and never tries to help an agent bypass a non-participating site's unmodified security (§4.5). This is identical in spirit to §4.5's constraint, just stated at the level of an individual login wall rather than a whole site.
+
+Case 2 reuses the Partner model (already a known, API-key-authenticated entity — see §3A) rather than introducing a second OAuth-client concept: the partner already has a secret (their API key) for server-to-server use, so the link-code exchange is a confidential-client token exchange, not a new public-client PKCE flow like the agent connector in §9's agent integration model.
+
 ### Go-to-market sequencing
 
 Precedent from comparable infrastructure plays, applied to this vertical:
