@@ -1,4 +1,5 @@
 import { HAPI, HAPIRequest, HAPIRequestError, requireGrant } from "@hapi-id/sdk";
+import bcrypt from "bcrypt";
 import cookieParser from "cookie-parser";
 import express from "express";
 
@@ -39,10 +40,10 @@ const accountLinks = new Map<string, { hapiUserId: string }>();
 const accountsByEmail = new Map<string, { hapiUserId: string; createdAt: Date }>();
 
 // This site's own, completely ordinary account database — traditional
-// email/password, nothing HAPI-aware about it at all. Fake-validated for
-// this demo (any password is accepted) since the point is to show HAPI
-// coexisting with a normal login, not to build a real auth system twice.
-const traditionalAccounts = new Set<string>();
+// email/password, nothing HAPI-aware about it at all. A real account must
+// exist (via /signup) before /login will accept it, same as any real site —
+// this used to fake-accept any email, which didn't represent reality.
+const traditionalAccounts = new Map<string, { passwordHash: string }>();
 
 function matchOrCreateAccount(email: string | undefined, hapiUserId: string): "matched" | "created" | "unknown" {
   if (!email) return "unknown";
@@ -73,36 +74,91 @@ app.post("/apply", requireGrant(hapi, "job_application:submit"), async (req: HAP
   });
 });
 
-// This site's own, completely ordinary login — exactly what it would look
-// like with no HAPI integration at all. A human (not an agent) uses this.
-// Fake-validated for the demo: any email/password combination works, since
-// there's no real account system here — the point is to show this
-// coexisting unchanged alongside the HAPI path below, not to build a second
-// real auth system.
-app.get("/login", (_req, res) => {
-  res.send(`<!doctype html>
-<html><head><meta charset="utf-8"><title>Demo Job Board — log in</title>
+function authPage(opts: { title: string; action: string; cta: string; footer: string; error?: string }): string {
+  return `<!doctype html>
+<html><head><meta charset="utf-8"><title>Demo Job Board — ${opts.title}</title>
 <style>body{font-family:-apple-system,system-ui,sans-serif;max-width:360px;margin:80px auto;padding:0 16px}
 input{width:100%;padding:8px;margin-top:4px;box-sizing:border-box}
 label{display:block;margin-top:12px;font-size:0.85rem;color:#475569}
-button{margin-top:16px;padding:8px 16px}</style></head>
+button{margin-top:16px;padding:8px 16px}
+.error{color:#dc2626;font-size:0.85rem;margin-top:8px}
+.footer{margin-top:16px;font-size:0.85rem}</style></head>
 <body>
   <h2>Demo Job Board</h2>
-  <p>Sign in to your account.</p>
-  <form method="post" action="/login">
+  <p>${opts.title === "log in" ? "Sign in to your account." : "Create an account."}</p>
+  <form method="post" action="${opts.action}">
     <label>Email</label>
     <input name="email" type="email" required>
     <label>Password</label>
-    <input name="password" type="password" required>
-    <button type="submit">Log in</button>
+    <input name="password" type="password" required minlength="8">
+    <button type="submit">${opts.cta}</button>
   </form>
-</body></html>`);
+  ${opts.error ? `<p class="error">${opts.error}</p>` : ""}
+  <p class="footer">${opts.footer}</p>
+</body></html>`;
+}
+
+// This site's own, completely ordinary account system — exactly what it
+// would look like with no HAPI integration at all. A human (not an agent)
+// uses this. An account must actually exist (created here) before /login
+// will accept it, and the password must actually match — no fake-accepting
+// any email, which doesn't represent how a real site behaves.
+app.get("/signup", (_req, res) => {
+  res.send(authPage({
+    title: "sign up",
+    action: "/signup",
+    cta: "Create account",
+    footer: `Already have an account? <a href="/login">Log in</a>`,
+  }));
 });
 
-app.post("/login", (req, res) => {
+app.post("/signup", async (req, res) => {
   const email = String(req.body.email ?? "");
-  if (!email) return res.status(400).send("missing email");
-  traditionalAccounts.add(email);
+  const password = String(req.body.password ?? "");
+  if (!email || !password) return res.status(400).send("missing email or password");
+  if (traditionalAccounts.has(email)) {
+    return res.status(409).send(
+      authPage({
+        title: "sign up",
+        action: "/signup",
+        cta: "Create account",
+        footer: `Already have an account? <a href="/login">Log in</a>`,
+        error: "An account with that email already exists.",
+      })
+    );
+  }
+
+  traditionalAccounts.set(email, { passwordHash: await bcrypt.hash(password, 12) });
+  res.cookie("session_email", email, { httpOnly: true, sameSite: "lax" });
+  res.redirect("/dashboard");
+});
+
+app.get("/login", (_req, res) => {
+  res.send(authPage({
+    title: "log in",
+    action: "/login",
+    cta: "Log in",
+    footer: `Don't have an account? <a href="/signup">Sign up</a>`,
+  }));
+});
+
+app.post("/login", async (req, res) => {
+  const email = String(req.body.email ?? "");
+  const password = String(req.body.password ?? "");
+  const account = traditionalAccounts.get(email);
+
+  if (!account || !(await bcrypt.compare(password, account.passwordHash))) {
+    return res.status(401).send(
+      authPage({
+        title: "log in",
+        action: "/login",
+        cta: "Log in",
+        footer: `Don't have an account? <a href="/signup">Sign up</a>`,
+        error: "Incorrect email or password.",
+      })
+    );
+  }
+
   res.cookie("session_email", email, { httpOnly: true, sameSite: "lax" });
   res.redirect("/dashboard");
 });
