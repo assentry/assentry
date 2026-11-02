@@ -23,8 +23,16 @@ const FEATURES = [
   },
 ];
 
-export function AuthPage({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+export function AuthPage({
+  onAuthenticated,
+  initialMode = "login",
+  onBack,
+}: {
+  onAuthenticated: (user: User) => void;
+  initialMode?: "login" | "signup";
+  onBack?: () => void;
+}) {
+  const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -56,7 +64,13 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: (user: User) =>
           className="pointer-events-none absolute -top-32 -right-32 h-96 w-96 rounded-full bg-gradient-to-br from-indigo-500/30 to-violet-600/20 blur-3xl"
           aria-hidden
         />
-        <Logo variant="dark" />
+        {onBack ? (
+          <button onClick={onBack} className="w-fit">
+            <Logo variant="dark" />
+          </button>
+        ) : (
+          <Logo variant="dark" />
+        )}
 
         <div className="relative">
           <h1 className="max-w-md text-3xl font-semibold tracking-tight text-white">
@@ -84,7 +98,13 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: (user: User) =>
       <div className="flex w-full flex-col items-center justify-center bg-white px-6 py-12 lg:w-1/2">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <Logo />
+            {onBack ? (
+              <button onClick={onBack}>
+                <Logo />
+              </button>
+            ) : (
+              <Logo />
+            )}
           </div>
 
           <div className="mb-6 flex rounded-lg bg-slate-100 p-1 text-sm">
