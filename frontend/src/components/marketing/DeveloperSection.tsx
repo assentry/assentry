@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { ArrowDown, Bot, Globe2, KeyRound, ShieldCheck, Smartphone } from "lucide-react";
+import Link from "next/link";
 
 const LAYERS = [
   { icon: Smartphone, title: "HAPI App", detail: "Where a person manages identity, grants and revocation." },
@@ -58,14 +59,12 @@ export function DeveloperSection() {
       </div>
 
       <div className="mt-12 flex justify-center">
-        <a
-          href="https://github.com/bioku-QR/hapi-sdk"
-          target="_blank"
-          rel="noreferrer"
+        <Link
+          href="/developers/docs"
           className="rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 px-8 py-3.5 text-sm font-semibold text-navy-950 shadow-lg shadow-cyan-500/20 transition-transform hover:scale-105"
         >
           Explore Developer Integration
-        </a>
+        </Link>
       </div>
     </section>
   );

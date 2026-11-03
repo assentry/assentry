@@ -22,9 +22,9 @@ export function Footer() {
           <a href="#our-vision" className="hover:text-white">
             Our Vision
           </a>
-          <a href="https://github.com/bioku-QR/hapi-sdk" target="_blank" rel="noreferrer" className="hover:text-white">
-            GitHub
-          </a>
+          <Link href="/developers/docs" className="hover:text-white">
+            Developer docs
+          </Link>
         </nav>
         <Link href="/signup" className="text-sm font-medium text-cyan-300 hover:text-cyan-200">
           Get Early Access →

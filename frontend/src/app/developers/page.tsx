@@ -1,5 +1,5 @@
-import { DeveloperPortal } from "../../components/DeveloperPortal";
+import { DevelopersLanding } from "../../components/developers/DevelopersLanding";
 
 export default function DevelopersPage() {
-  return <DeveloperPortal />;
+  return <DevelopersLanding />;
 }

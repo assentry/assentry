@@ -11,6 +11,7 @@ const LINKS = [
   { href: "#for-people", label: "For People" },
   { href: "#for-developers", label: "For Developers" },
   { href: "#our-vision", label: "Our Vision" },
+  { href: "/developers/docs", label: "Docs" },
 ];
 
 export function Nav() {
