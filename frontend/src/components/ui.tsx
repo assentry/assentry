@@ -1,4 +1,6 @@
+import { Check, ChevronDown, Plus, X } from "lucide-react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
@@ -89,6 +91,126 @@ const statTones: Record<StatTone, { icon: string; ring: string }> = {
   emerald: { icon: "bg-emerald-50 text-emerald-600", ring: "ring-emerald-600/10" },
   slate: { icon: "bg-slate-100 text-slate-600", ring: "ring-slate-500/10" },
 };
+
+export function MultiSelect({
+  options,
+  selected,
+  onChange,
+  placeholder = "Select fields…",
+  allowCustom = true,
+}: {
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  placeholder?: string;
+  allowCustom?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [customValue, setCustomValue] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function toggle(value: string) {
+    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+  }
+
+  function remove(value: string) {
+    onChange(selected.filter((v) => v !== value));
+  }
+
+  function addCustom() {
+    const value = customValue.trim();
+    if (value && !selected.includes(value)) onChange([...selected, value]);
+    setCustomValue("");
+  }
+
+  function labelFor(value: string): string {
+    return options.find((o) => o.value === value)?.label ?? value;
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full min-h-[38px] flex-wrap items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-left text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+      >
+        {selected.length === 0 ? (
+          <span className="text-slate-400">{placeholder}</span>
+        ) : (
+          selected.map((value) => (
+            <span
+              key={value}
+              className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700"
+            >
+              {labelFor(value)}
+              <X
+                className="h-3 w-3 cursor-pointer hover:text-indigo-900"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  remove(value);
+                }}
+              />
+            </span>
+          ))
+        )}
+        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+          {options.map((option) => {
+            const checked = selected.includes(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => toggle(option.value)}
+                className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-sm hover:bg-slate-50"
+              >
+                <span className="text-slate-700">{option.label}</span>
+                {checked && <Check className="h-4 w-4 text-indigo-600" />}
+              </button>
+            );
+          })}
+
+          {allowCustom && (
+            <div className="mt-1 flex items-center gap-1.5 border-t border-slate-100 p-1.5 pt-2">
+              <input
+                value={customValue}
+                onChange={(e) => setCustomValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCustom();
+                  }
+                }}
+                placeholder="Custom field…"
+                className="w-full min-w-0 rounded-md border border-slate-200 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={addCustom}
+                className="flex shrink-0 items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
+              >
+                <Plus className="h-3 w-3" /> Add
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function StatCard({
   label,

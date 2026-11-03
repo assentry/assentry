@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { Agent, Grant } from "../lib/types";
-import { Badge, Button, Card, EmptyState, Input, Label, Select } from "./ui";
+import { Badge, Button, Card, EmptyState, Input, Label, MultiSelect, Select } from "./ui";
+
+const FIELD_OPTIONS = [
+  { value: "name", label: "Name" },
+  { value: "email", label: "Email" },
+  { value: "resume", label: "Resume" },
+  { value: "phone", label: "Phone number" },
+  { value: "address", label: "Address" },
+];
 
 function grantStatus(grant: Grant): { label: string; tone: "success" | "danger" | "warning" } {
   if (grant.revokedAt) return { label: "Revoked", tone: "danger" };
@@ -21,7 +29,7 @@ export function GrantsPanel({
   const activeAgents = agents.filter((a) => !a.revokedAt);
   const [agentId, setAgentId] = useState(activeAgents[0]?.id ?? "");
   const [scope, setScope] = useState("job_application:submit");
-  const [fields, setFields] = useState("name,email,resume");
+  const [fields, setFields] = useState<string[]>(["name", "email", "resume"]);
   const [minutes, setMinutes] = useState(60);
   const [busy, setBusy] = useState(false);
   const [issuedCredential, setIssuedCredential] = useState<string | null>(null);
@@ -36,7 +44,7 @@ export function GrantsPanel({
       const data = await api.post<{ credential: string }>("/grants", {
         agentId,
         scope,
-        consentedFields: fields.split(",").map((f) => f.trim()).filter(Boolean),
+        consentedFields: fields,
         expiresInMinutes: Number(minutes),
       });
       setIssuedCredential(data.credential);
@@ -87,8 +95,8 @@ export function GrantsPanel({
                 <Input value={scope} onChange={(e) => setScope(e.target.value)} />
               </div>
               <div>
-                <Label>Consented fields (comma-separated)</Label>
-                <Input value={fields} onChange={(e) => setFields(e.target.value)} />
+                <Label>Consented fields</Label>
+                <MultiSelect options={FIELD_OPTIONS} selected={fields} onChange={setFields} />
               </div>
               <div>
                 <Label>Expires in (minutes)</Label>
