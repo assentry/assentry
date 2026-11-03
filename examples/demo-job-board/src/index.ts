@@ -1,4 +1,4 @@
-import { getCredentialFromRequest, HAPI, HAPIRequest, HAPIRequestError, hapiDiscovery, requireGrant } from "@hapi-id/sdk";
+import { getCredentialFromRequest, HAPI, HAPIRequestError, hapiDiscovery } from "@hapi-id/sdk";
 import bcrypt from "bcrypt";
 import cookieParser from "cookie-parser";
 import express from "express";
@@ -20,20 +20,13 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 // Makes this site discoverable to an agent the moment it reaches *any* page
-// here — not just /login — so a generic instruction ("apply for this job")
-// doesn't dead-end at the human login wall with no way through. See
-// @hapi-id/sdk's README for what this adds to every response.
+// here — not just /login — so a generic instruction doesn't dead-end at the
+// human login wall with no way through. See @hapi-id/sdk's README for what
+// this adds to every response.
 app.use(
   hapiDiscovery({
     partnerName: "Demo Job Board",
-    routes: [
-      {
-        path: "/apply",
-        method: "POST",
-        scope: "job_application:submit",
-        description: "Submit a job application on the signed-in user's behalf",
-      },
-    ],
+    routes: [],
   })
 );
 
@@ -69,28 +62,6 @@ function matchOrCreateAccount(email: string | undefined, hapiUserId: string): "m
   accountsByEmail.set(email, { hapiUserId, createdAt: new Date() });
   return "created";
 }
-
-// This is the only HAPI-specific code a partner site needs: gate the route,
-// then use whatever the grant proves to decide what to skip (here, there's
-// no separate signup/OTP step at all for an authorised agent). Account
-// matching/creation below is ordinary application logic, not anything HAPI
-// mediates — HAPI's job stopped the moment requireGrant and getProfile
-// returned.
-app.post("/apply", requireGrant(hapi, "job_application:submit"), async (req: HAPIRequest, res) => {
-  const profile = await hapi.getProfile(req.hapiCredential!, ["name", "email", "resume"]);
-  if (!profile.valid) {
-    return res.status(403).json({ error: "could not read applicant profile", reason: profile.reason });
-  }
-
-  const accountStatus = matchOrCreateAccount(profile.profile.email as string | undefined, req.hapiGrant!.userId);
-
-  res.json({
-    status: "submitted",
-    accountStatus,
-    applicant: profile.profile,
-    authorisedUntil: req.hapiGrant!.expiresAt,
-  });
-});
 
 function authPage(opts: { title: string; action: string; cta: string; footer: string; error?: string }): string {
   return `<!doctype html>
@@ -183,11 +154,10 @@ app.post("/login", async (req, res) => {
 
 // Protected content, reachable two completely independent ways: a human
 // who logged in the ordinary way (session cookie), or an agent presenting
-// a HAPI credential (the standard Authorization: Bearer header, via the
-// same SDK helper /apply's requireGrant uses internally — no site-specific
-// convention to guess). Neither path knows or cares that the other exists;
-// that's the point of HAPI coexisting with a site's existing login rather
-// than replacing it.
+// a HAPI credential (the standard Authorization: Bearer header — no
+// site-specific convention to guess). Neither path knows or cares that the
+// other exists; that's the point of HAPI coexisting with a site's existing
+// login rather than replacing it.
 app.get("/dashboard", async (req, res) => {
   const sessionEmail = req.cookies?.session_email as string | undefined;
   if (sessionEmail && traditionalAccounts.has(sessionEmail)) {
