@@ -6,13 +6,24 @@ export function LandingPage({ onGetStarted, onLogIn }: { onGetStarted: () => voi
       className="relative min-h-screen overflow-hidden text-white"
       style={{ background: "linear-gradient(180deg, #3b4766 0%, #4f5d80 55%, #5a6890 100%)" }}
     >
-      {/* Ambient dot-grid texture across the whole page */}
+      {/* Ambient dot-grid texture, slowly drifting — reads as a live, active
+          surface rather than a static background. */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-40"
+        className="animate-drift pointer-events-none absolute -inset-20 opacity-40"
         style={{
           backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)",
           backgroundSize: "22px 22px",
         }}
+      />
+
+      {/* Two slow, breathing ambient glows */}
+      <div
+        className="animate-breathe pointer-events-none absolute -left-20 top-20 h-96 w-96 rounded-full bg-indigo-400/20 blur-3xl"
+        style={{ animationDelay: "-2s" }}
+      />
+      <div
+        className="animate-breathe pointer-events-none absolute -right-20 bottom-0 h-96 w-96 rounded-full bg-violet-400/20 blur-3xl"
+        style={{ animationDelay: "-4s" }}
       />
 
       <div className="relative mx-auto max-w-6xl px-6 py-8">

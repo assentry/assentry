@@ -14,6 +14,22 @@
   .animate-fade-in {
     animation: fade-in 0.2s ease-out;
   }
+  .animate-drift {
+    animation: drift 60s linear infinite;
+  }
+  .animate-breathe {
+    animation: breathe 5s ease-in-out infinite;
+  }
+  .animate-orbit {
+    animation: orbit 50s linear infinite;
+  }
+  .animate-orbit-reverse {
+    animation: orbit 65s linear infinite reverse;
+  }
+  .animate-dash {
+    stroke-dasharray: 6 10;
+    animation: dash-flow 2.5s linear infinite;
+  }
 }
 
 @keyframes fade-in {
@@ -24,5 +40,54 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 220px 220px;
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash-flow {
+  from {
+    stroke-dashoffset: 32;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-drift,
+  .animate-breathe,
+  .animate-orbit,
+  .animate-orbit-reverse,
+  .animate-dash {
+    animation: none;
   }
 }

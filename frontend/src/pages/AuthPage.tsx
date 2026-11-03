@@ -44,13 +44,13 @@ export function AuthPage({
     >
       {/* Same ambient texture as the landing page, for visual continuity */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-40"
+        className="animate-drift pointer-events-none absolute -inset-20 opacity-40"
         style={{
           backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)",
           backgroundSize: "22px 22px",
         }}
       />
-      <div className="pointer-events-none absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-400/25 blur-3xl" />
+      <div className="animate-breathe pointer-events-none absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-400/25 blur-3xl" />
 
       <div className="relative w-full max-w-sm">
         <div className="mb-6 flex justify-center">
