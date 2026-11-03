@@ -1,10 +1,10 @@
 "use client";
 
-import { Bot } from "lucide-react";
-import { useState } from "react";
+import { Bot, Check, Copy, ExternalLink } from "lucide-react";
+import { useMemo, useState } from "react";
 import { api, API_BASE_URL } from "../lib/api";
 import type { Agent, Platform } from "../lib/types";
-import { Badge, Button, Card, EmptyState } from "./ui";
+import { Badge, Button, Card, EmptyState, Select } from "./ui";
 
 const PLATFORM_LABELS: Record<Platform, string> = {
   claude: "Claude",
@@ -20,15 +20,47 @@ const PLATFORM_COLORS: Record<Platform, string> = {
   other: "bg-cyan-400/10 text-cyan-300",
 };
 
-// The address a person pastes into their AI's own connector settings — not a
-// secret. The frontend is now its own deployment (a different origin from
-// the HAPI backend), so the backend's address always has to be configured
-// explicitly via NEXT_PUBLIC_API_BASE_URL rather than inferred from
-// window.location.
+// The address a person's AI connects to — not a secret. The frontend is now
+// its own deployment (a different origin from the HAPI backend), so the
+// backend's address always has to be configured explicitly via
+// NEXT_PUBLIC_API_BASE_URL rather than inferred from window.location.
 const MCP_URL = `${API_BASE_URL}/mcp`;
+
+type ConnectProvider = "claude" | "chatgpt" | "grok" | "other";
+
+const CONNECT_PROVIDERS: Record<
+  ConnectProvider,
+  { label: string; connectUrl?: (mcpUrl: string) => string; settingsUrl?: string }
+> = {
+  claude: {
+    label: "Claude",
+    // Verified, documented deep link (Anthropic): pre-fills the "Add custom
+    // connector" dialog with the name and URL already entered — the person
+    // only has to review and click Add.
+    connectUrl: (mcpUrl) =>
+      `https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=HAPI&connectorUrl=${encodeURIComponent(mcpUrl)}`,
+  },
+  chatgpt: {
+    // No public deep-link/prefill exists for ChatGPT's custom connectors
+    // today — only a manual Settings > Connectors > Create flow. We still
+    // remove the error-prone part (retyping the URL) with a copy button.
+    label: "ChatGPT",
+    settingsUrl: "https://chatgpt.com/",
+  },
+  grok: {
+    // Same story as ChatGPT: grok.com/connectors only supports manual paste.
+    label: "Grok",
+    settingsUrl: "https://grok.com/connectors",
+  },
+  other: {
+    label: "Another AI",
+  },
+};
 
 export function AgentsPanel({ agents, onChange }: { agents: Agent[]; onChange: () => void }) {
   const [copied, setCopied] = useState(false);
+  const [provider, setProvider] = useState<ConnectProvider>("claude");
+  const config = useMemo(() => CONNECT_PROVIDERS[provider], [provider]);
 
   function copyUrl() {
     navigator.clipboard.writeText(MCP_URL);
@@ -46,17 +78,52 @@ export function AgentsPanel({ agents, onChange }: { agents: Agent[]; onChange: (
       <Card>
         <h2 className="mb-1 text-sm font-semibold text-white">Connect an agent</h2>
         <p className="mb-4 text-sm text-slate-400">
-          Open your AI's own settings (e.g. Claude's Connectors) and add this address. It'll send you
-          back here to log in and approve — you won't need to copy or type anything else.
+          {config.connectUrl
+            ? "Choose your AI, then click connect — it opens with everything already filled in. Just review and confirm."
+            : "Choose your AI. This platform doesn't yet support one-click setup, so we'll copy the address for you to paste in."}
         </p>
-        <div className="flex items-center gap-2">
-          <code className="flex-1 overflow-x-auto rounded bg-white/5 px-2 py-1.5 text-xs text-slate-300">
-            {MCP_URL}
-          </code>
-          <Button variant="secondary" onClick={copyUrl} type="button">
-            {copied ? "Copied" : "Copy"}
-          </Button>
+
+        <div className="mb-4">
+          <Select value={provider} onChange={(e) => setProvider(e.target.value as ConnectProvider)}>
+            {(Object.keys(CONNECT_PROVIDERS) as ConnectProvider[]).map((key) => (
+              <option key={key} value={key}>
+                {CONNECT_PROVIDERS[key].label}
+              </option>
+            ))}
+          </Select>
         </div>
+
+        {config.connectUrl ? (
+          <Button
+            type="button"
+            className="w-full"
+            onClick={() => window.open(config.connectUrl!(MCP_URL), "_blank", "noopener,noreferrer")}
+          >
+            Connect with {config.label} <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <code className="flex-1 overflow-x-auto rounded bg-white/5 px-2 py-1.5 text-xs text-slate-300">
+                {MCP_URL}
+              </code>
+              <Button variant="secondary" onClick={copyUrl} type="button">
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? "Copied" : "Copy"}
+              </Button>
+            </div>
+            {config.settingsUrl && (
+              <a
+                href={config.settingsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-cyan-300 hover:text-cyan-200"
+              >
+                Open {config.label} connector settings <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+        )}
       </Card>
 
       <Card>
