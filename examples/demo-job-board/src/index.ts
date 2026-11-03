@@ -26,7 +26,14 @@ app.use(cookieParser());
 app.use(
   hapiDiscovery({
     partnerName: "Demo Job Board",
-    routes: [],
+    routes: [
+      {
+        path: "/dashboard",
+        method: "GET",
+        scope: "dashboard:read",
+        description: "View the content behind this site's login, authorised via your HAPI credential",
+      },
+    ],
   })
 );
 
