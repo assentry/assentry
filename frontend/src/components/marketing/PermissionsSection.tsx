@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Check, ShieldAlert, X } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 import { Card } from "../ui";
 
@@ -19,15 +20,27 @@ export function PermissionsSection() {
   return (
     <section id="for-people" className="relative mx-auto max-w-6xl px-6 py-24">
       <div className="grid items-center gap-12 lg:grid-cols-2">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Delegate Tasks. Never Surrender Control.
-          </h2>
-          <p className="mt-4 text-slate-400">
-            Every permission is specific, limited and revocable. An agent only ever holds the
-            exact authorisations you've granted — nothing more — and you can see and withdraw any
-            of them at any time.
-          </p>
+        <div className="relative overflow-hidden rounded-3xl">
+          {/* "Digital Human" — the person whose identity this section is
+              about, with the copy sitting in its negative space. */}
+          <Image
+            src="/images/digital-human.webp"
+            alt=""
+            width={1168}
+            height={784}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#080D19] via-[#080D19]/80 to-[#080D19]/10" />
+          <div className="relative px-6 py-14 sm:px-10">
+            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Delegate Tasks. Never Surrender Control.
+            </h2>
+            <p className="mt-4 text-slate-300">
+              Every permission is specific, limited and revocable. An agent only ever holds the
+              exact authorisations you've granted — nothing more — and you can see and withdraw
+              any of them at any time.
+            </p>
+          </div>
         </div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>

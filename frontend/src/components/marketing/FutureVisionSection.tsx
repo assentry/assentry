@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 // A lightweight CSS/SVG network globe — deliberately simpler than the hero's
 // WebGL scene, per the brief's distinction between the two visuals.
 const DOTS = Array.from({ length: 36 }, (_, i) => {
@@ -12,7 +14,20 @@ const DOTS = Array.from({ length: 36 }, (_, i) => {
 
 export function FutureVisionSection() {
   return (
-    <section id="our-vision" className="relative mx-auto max-w-5xl px-6 py-24 text-center">
+    <section id="our-vision" className="relative overflow-hidden px-6 py-32 text-center">
+      {/* "Digital Universe" — a human silhouette inside the agentic internet,
+          as the atmospheric backdrop for HAPI's global-network ambition. */}
+      <div className="absolute inset-0 -z-10">
+        <Image
+          src="/images/digital-universe.webp"
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover opacity-50"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#080D19] via-[#080D19]/70 to-[#080D19]" />
+      </div>
+
       <h2 className="mx-auto max-w-3xl text-3xl font-bold tracking-tight text-white sm:text-4xl">
         The Internet Was Built for People. The Next Internet Must Work for Their AI.
       </h2>
