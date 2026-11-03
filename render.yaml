@@ -23,7 +23,7 @@ services:
     name: hapi-demo-job-board
     runtime: node
     plan: free
-    buildCommand: cd sdk && npm install --include=dev && npm run build && cd ../examples/demo-job-board && npm install --include=dev && npm run build
+    buildCommand: cd examples/demo-job-board && npm install --include=dev && npm run build
     startCommand: node examples/demo-job-board/dist/index.js
     envVars:
       # Set these three after hapi-backend's first deploy: HAPI_BASE_URL is

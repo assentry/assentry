@@ -9,7 +9,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@hapi-id/sdk": "file:../../sdk",
+    "@hapi-id/sdk": "github:bioku-QR/hapi-sdk",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "express": "^4.19.2"

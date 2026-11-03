@@ -17,7 +17,7 @@ Identity, grant, verification, audit, partner SDK and OAuth-connected agent acce
 
 The personal app (consent UI) lives in `frontend/` — a React + TypeScript + Tailwind app. In dev it runs on its own Vite server and proxies API calls to the backend; in production it's built into `public/` and served directly by the backend. Its Agents tab shows the `/mcp` address to paste into an AI's own connector settings — that's the only "setup" a person ever does; everything else happens via the OAuth login/consent redirect.
 
-Partner sites integrate via `sdk/` (`@hapi-id/sdk`) rather than calling `/verify` and `/profile` directly — a thin client plus an Express `requireGrant` middleware. `examples/demo-job-board` is a runnable partner site built on it, used both as SDK test coverage and as the integration reference for design partners.
+Partner sites integrate via `@hapi-id/sdk` ([separate public repo](https://github.com/bioku-QR/hapi-sdk), MIT licensed) rather than calling `/verify` and `/profile` directly — a thin client plus an Express `requireGrant` middleware. `examples/demo-job-board` is a runnable partner site built on it (installed as a real external dependency, not a local path), used both as SDK test coverage and as the integration reference for design partners.
 
 See `scripts/test-oauth-flow.mjs` for a script that plays the real MCP client role end-to-end with no shortcuts — dynamic registration, login, consent, PKCE'd token exchange, and real MCP tool calls over the remote transport — useful for verifying the backend without a real AI client. `scripts/test-account-link.mjs` does the same for the account-linking flow.
 
@@ -37,7 +37,7 @@ Open `http://localhost:5173` for the consent UI in dev (hot reload), or `http://
 
 ## Partner handshake example
 
-Via the SDK (recommended — see `sdk/README.md`):
+Via the SDK (recommended — see [hapi-sdk's README](https://github.com/bioku-QR/hapi-sdk)):
 
 ```ts
 const hapi = new HAPI({ apiKey: process.env.HAPI_API_KEY! });
@@ -66,7 +66,7 @@ curl -X POST http://localhost:4000/profile \
 ## Not in this slice (by design, see STRATEGY.md)
 
 - Task-specific email/OTP handling.
-- Publishing the SDK to a package registry — installed locally (`file:`) for now.
+- Publishing the SDK to npm — installed as a GitHub dependency (`github:bioku-QR/hapi-sdk`) for now.
 - An agent requesting *new* authorisations on the fly (Option B from the design discussion) — only pre-existing grants can be used today.
 - Listing HAPI in each AI platform's official connector directory — today it's added as a custom/unlisted connector by URL.
 - Helping an agent through a plain login gate a site never modified for HAPI (case 3 of the account-access model) — permanently out of scope, by design, not a gap to close later.
