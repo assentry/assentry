@@ -7,6 +7,7 @@ Identity, grant, verification, audit, partner SDK and OAuth-connected agent acce
 - **Identity** — `User` signup/login (`/auth`).
 - **Agent** — a connected AI orchestrator instance the user owns (`/agents`, list/revoke only). Agents are created exclusively through the OAuth consent flow below — there's no manual "create an agent" path, so no secret is ever generated for a human to copy.
 - **Grant** — the consent act: a user authorises a specific agent to act on their behalf, with only the data fields they choose, until a specific time (`/grants`). Issuing a grant returns a signed **credential** — what an agent carries and presents. No separate per-action scope for now — see `STRATEGY.md` for why.
+- **Developer console** (`/developer/*`) — separate `Developer` accounts (their session tokens are rejected on end-user routes and vice versa) that own partner apps: create an app, see a key preview, rotate or revoke the key, register account-linking redirect URIs. The full key is shown once and only its hash is stored. UI and full developer docs live at `/developers` on the frontend.
 - **Verify** — the partner-facing handshake (`/verify`, API-key authenticated). Always re-checks the database (revocation, expiry, agent status), never trusts the signed token alone.
 - **Profile** — scoped data disclosure (`/profile`), separate from authorisation. Returns only the intersection of what's requested and what the grant's `consentedFields` actually cover. Pull, not push — nothing is embedded in the credential itself.
 - **Audit** — every verify/profile/grant/credential event is logged and viewable by the user (`/audit`).
@@ -40,8 +41,8 @@ Open `http://localhost:3000` for the marketing site and consent UI in dev (hot r
 Via the SDK (recommended — see [hapi-sdk's README](https://github.com/bioku-QR/hapi-sdk)):
 
 ```ts
-const hapi = new HAPI({ apiKey: process.env.HAPI_API_KEY! });
-app.post("/apply", requireGrant(hapi, "job_application:submit"), async (req, res) => {
+const hapi = new HAPI({ apiKey: process.env.HAPI_API_KEY!, baseUrl: "https://hapi-backend-q9lh.onrender.com" });
+app.post("/apply", requireGrant(hapi), async (req, res) => {
   const profile = await hapi.getProfile(req.hapiCredential!, ["name", "email", "resume"]);
   res.json({ status: "submitted", applicant: profile.profile });
 });
