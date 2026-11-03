@@ -197,7 +197,7 @@ app.get("/dashboard", async (req, res) => {
   const credential = getCredentialFromRequest(req);
   if (!credential) return res.redirect("/login");
 
-  const verification = await hapi.verify(credential, "job_application:submit");
+  const verification = await hapi.verify(credential, "dashboard:read");
   if (!verification.valid) {
     return res.status(403).send(`Access denied: ${verification.reason}. <a href="/login">Back to login</a>`);
   }

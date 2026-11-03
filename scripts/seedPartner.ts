@@ -13,7 +13,7 @@ async function main() {
     data: {
       name,
       apiKeyHash: hashApiKey(apiKey),
-      allowedScopes: ["job_application:submit"],
+      allowedScopes: ["job_application:submit", "dashboard:read"],
       linkRedirectUris: [linkRedirectUri],
     },
   });
