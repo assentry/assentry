@@ -100,8 +100,7 @@ input{width:100%;padding:8px;margin-top:4px;box-sizing:border-box}
 label{display:block;margin-top:12px;font-size:0.85rem;color:#475569}
 button{margin-top:16px;padding:8px 16px}
 .error{color:#dc2626;font-size:0.85rem;margin-top:8px}
-.footer{margin-top:16px;font-size:0.85rem}
-.agent-note{margin-top:28px;padding:10px 12px;font-size:0.8rem;color:#64748b;border-top:1px solid #e2e8f0}</style></head>
+.footer{margin-top:16px;font-size:0.85rem}</style></head>
 <body>
   <h2>Demo Job Board</h2>
   <p>${opts.title === "log in" ? "Sign in to your account." : "Create an account."}</p>
@@ -114,7 +113,6 @@ button{margin-top:16px;padding:8px 16px}
   </form>
   ${opts.error ? `<p class="error">${opts.error}</p>` : ""}
   <p class="footer">${opts.footer}</p>
-  <p class="agent-note">Acting as an AI agent on someone's behalf? This login form isn't for you — see <a href="/.well-known/hapi.json">/.well-known/hapi.json</a> for the route that accepts your HAPI credential directly.</p>
 </body></html>`;
 }
 
