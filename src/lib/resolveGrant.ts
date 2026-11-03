@@ -7,8 +7,7 @@ export type GrantDenialReason =
   | "grant_not_found"
   | "revoked"
   | "agent_revoked"
-  | "expired"
-  | "scope_not_permitted";
+  | "expired";
 
 export type GrantResolution =
   | { valid: true; grant: Grant; agent: Agent; user: User }
@@ -27,10 +26,7 @@ export type GrantResolution =
 // the signed token alone — the token proves the grant *was* issued, the
 // database row is the only source of truth on whether it still holds.
 // This is what makes verification independent of whatever the agent claims.
-export async function resolveGrant(
-  credential: string,
-  partnerAllowedScopes: string[]
-): Promise<GrantResolution> {
+export async function resolveGrant(credential: string): Promise<GrantResolution> {
   const payload = decodeCredential(credential);
   if (!payload) return { valid: false, reason: "invalid_credential" };
 
@@ -48,12 +44,6 @@ export async function resolveGrant(
   }
   if (grant.expiresAt.getTime() < Date.now()) {
     return { valid: false, reason: "expired", grant, agent, user };
-  }
-  if (
-    partnerAllowedScopes.length > 0 &&
-    !partnerAllowedScopes.includes(grant.scope)
-  ) {
-    return { valid: false, reason: "scope_not_permitted", grant, agent, user };
   }
 
   return { valid: true, grant, agent, user };

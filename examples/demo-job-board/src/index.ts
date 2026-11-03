@@ -30,7 +30,6 @@ app.use(
       {
         path: "/dashboard",
         method: "GET",
-        scope: "dashboard:read",
         description: "View the content behind this site's login, authorised via your HAPI credential",
       },
     ],
@@ -174,7 +173,7 @@ app.get("/dashboard", async (req, res) => {
   const credential = getCredentialFromRequest(req);
   if (!credential) return res.redirect("/login");
 
-  const verification = await hapi.verify(credential, "dashboard:read");
+  const verification = await hapi.verify(credential);
   if (!verification.valid) {
     return res.status(403).send(`Access denied: ${verification.reason}. <a href="/login">Back to login</a>`);
   }

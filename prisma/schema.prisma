@@ -47,15 +47,18 @@ model Agent {
   auditLogs AuditLog[]
 }
 
-// The authorisation a user grants to an agent: scope + expiry + revocation.
-// This is the object a signed credential is issued against.
+// The authorisation a user grants to an agent: which data may be disclosed,
+// plus expiry + revocation. This is the object a signed credential is
+// issued against. No separate "scope"/action concept for now — a valid
+// grant means "this agent may act for this person," full stop; per-action
+// restriction was real friction for too little benefit at this stage and
+// can come back later as a deliberate design, not reinstated piecemeal.
 model Grant {
   id              String    @id @default(uuid())
   userId          String
   user            User      @relation(fields: [userId], references: [id])
   agentId         String
   agent           Agent     @relation(fields: [agentId], references: [id])
-  scope           String // e.g. "job_application:submit"
   consentedFields String[] @default([]) // profile fields this grant may disclose, e.g. ["name","email","resume"]
   expiresAt       DateTime
   revokedAt       DateTime?
@@ -104,7 +107,6 @@ model Partner {
   id           String   @id @default(uuid())
   name         String
   apiKeyHash   String   @unique
-  allowedScopes String[] @default([]) // scopes this partner is permitted to verify
   createdAt    DateTime @default(now())
 
   // Safe to put in a browser-facing URL (unlike id/apiKeyHash semantics —

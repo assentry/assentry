@@ -217,6 +217,8 @@ A participating site having the SDK installed does not by itself mean an agent c
 
 Case 2's link flow reuses the Partner model (already a known, API-key-authenticated entity — see §3A) rather than introducing a second OAuth-client concept: the partner already has a secret (their API key) for server-to-server use, so the link-code exchange is a confidential-client token exchange, not a new public-client PKCE flow like the agent connector in §9's agent integration model.
 
+**Per-action scope dropped for now (locked, 2026-11-03):** `Grant` no longer carries a `scope` string, and `/verify` no longer takes an `action` parameter — a valid, non-revoked, non-expired grant authorises an agent to act for the person who issued it, full stop. The remaining restriction is `consentedFields` (§3A's per-field disclosure), unchanged. This was dropped because exact-string scope matching, kept in sync across the grant, the partner's own code, and a partner-side allowlist, was real recurring friction for too little benefit at this stage — every new partner route needed a new scope string synced in three places by hand. A real open question this creates, raised and deliberately deferred rather than resolved here: without a scope string, nothing currently binds a grant/credential to the *specific partner* it was created for — any partner with a valid API key can successfully `/verify` any credential, not just the one the person intended it for. Revisit before this goes beyond prototype use; the fix is likely binding a grant to a partner at creation time, not reinstating per-action scope strings.
+
 ### Go-to-market sequencing
 
 Precedent from comparable infrastructure plays, applied to this vertical:

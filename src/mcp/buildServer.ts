@@ -14,7 +14,7 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
     {
       description:
         "List what this agent is currently authorised to do for the person who connected it, " +
-        "including scope, what data it may disclose, and when each authorisation expires.",
+        "including what data it may disclose and when each authorisation expires.",
     },
     async () => {
       const grants = await listGrantsForAgent(agentId);
@@ -51,7 +51,7 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
           {
             type: "text" as const,
             text: JSON.stringify(
-              { credential: outcome.credential, scope: outcome.scope, expiresAt: outcome.expiresAt },
+              { credential: outcome.credential, expiresAt: outcome.expiresAt },
               null,
               2
             ),

@@ -6,7 +6,7 @@ Identity, grant, verification, audit, partner SDK and OAuth-connected agent acce
 
 - **Identity** — `User` signup/login (`/auth`).
 - **Agent** — a connected AI orchestrator instance the user owns (`/agents`, list/revoke only). Agents are created exclusively through the OAuth consent flow below — there's no manual "create an agent" path, so no secret is ever generated for a human to copy.
-- **Grant** — the consent act: a user authorises a specific agent to do a specific scoped action until a specific time (`/grants`). Issuing a grant returns a signed **credential** — what an agent carries and presents.
+- **Grant** — the consent act: a user authorises a specific agent to act on their behalf, with only the data fields they choose, until a specific time (`/grants`). Issuing a grant returns a signed **credential** — what an agent carries and presents. No separate per-action scope for now — see `STRATEGY.md` for why.
 - **Verify** — the partner-facing handshake (`/verify`, API-key authenticated). Always re-checks the database (revocation, expiry, agent status), never trusts the signed token alone.
 - **Profile** — scoped data disclosure (`/profile`), separate from authorisation. Returns only the intersection of what's requested and what the grant's `consentedFields` actually cover. Pull, not push — nothing is embedded in the credential itself.
 - **Audit** — every verify/profile/grant/credential event is logged and viewable by the user (`/audit`).

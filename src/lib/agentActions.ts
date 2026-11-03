@@ -3,7 +3,6 @@ import { prisma } from "./prisma";
 
 export interface AgentGrantSummary {
   id: string;
-  scope: string;
   consentedFields: string[];
   expiresAt: Date;
   createdAt: Date;
@@ -16,13 +15,13 @@ export interface AgentGrantSummary {
 export async function listGrantsForAgent(agentId: string): Promise<AgentGrantSummary[]> {
   return prisma.grant.findMany({
     where: { agentId, revokedAt: null, expiresAt: { gt: new Date() } },
-    select: { id: true, scope: true, consentedFields: true, expiresAt: true, createdAt: true },
+    select: { id: true, consentedFields: true, expiresAt: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
 }
 
 export type CredentialOutcome =
-  | { ok: true; credential: string; scope: string; expiresAt: Date }
+  | { ok: true; credential: string; expiresAt: Date }
   | { ok: false; error: "grant_not_found" | "grant_revoked" | "grant_expired" };
 
 export async function issueCredentialForAgentGrant(
@@ -35,7 +34,7 @@ export async function issueCredentialForAgentGrant(
   if (grant.expiresAt.getTime() < Date.now()) return { ok: false, error: "grant_expired" };
 
   const credential = issueCredential(
-    { grantId: grant.id, userId: grant.userId, agentId: grant.agentId, scope: grant.scope },
+    { grantId: grant.id, userId: grant.userId, agentId: grant.agentId },
     grant.expiresAt
   );
 
@@ -51,5 +50,5 @@ export async function issueCredentialForAgentGrant(
     },
   });
 
-  return { ok: true, credential, scope: grant.scope, expiresAt: grant.expiresAt };
+  return { ok: true, credential, expiresAt: grant.expiresAt };
 }

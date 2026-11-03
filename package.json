@@ -10,8 +10,7 @@
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "seed:partner": "ts-node scripts/seedPartner.ts",
-    "add-scope": "ts-node scripts/addPartnerScope.ts"
+    "seed:partner": "ts-node scripts/seedPartner.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",

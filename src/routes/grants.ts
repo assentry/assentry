@@ -9,7 +9,6 @@ grantsRouter.use(requireUser);
 
 const createGrantSchema = z.object({
   agentId: z.string().uuid(),
-  scope: z.string().min(1), // e.g. "job_application:submit"
   consentedFields: z.array(z.string()).default([]),
   expiresInMinutes: z.number().int().positive().max(60 * 24 * 30), // cap at 30 days
 });
@@ -23,7 +22,7 @@ grantsRouter.post("/", async (req: AuthedRequest, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
-  const { agentId, scope, consentedFields, expiresInMinutes } = parsed.data;
+  const { agentId, consentedFields, expiresInMinutes } = parsed.data;
 
   const agent = await prisma.agent.findFirst({
     where: { id: agentId, userId: req.userId!, revokedAt: null },
@@ -37,14 +36,13 @@ grantsRouter.post("/", async (req: AuthedRequest, res) => {
     data: {
       userId: req.userId!,
       agentId,
-      scope,
       consentedFields,
       expiresAt,
     },
   });
 
   const credential = issueCredential(
-    { grantId: grant.id, userId: grant.userId, agentId: grant.agentId, scope },
+    { grantId: grant.id, userId: grant.userId, agentId: grant.agentId },
     expiresAt
   );
 
@@ -56,7 +54,7 @@ grantsRouter.post("/", async (req: AuthedRequest, res) => {
       action: "grant_created",
       result: "allowed",
       reason: "ok",
-      metadata: { scope, expiresAt },
+      metadata: { expiresAt },
     },
   });
 

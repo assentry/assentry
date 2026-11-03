@@ -3,7 +3,7 @@ import { hashSecret } from "./secrets";
 import { prisma } from "./prisma";
 
 export interface PartnerRequest extends Request {
-  partner?: { id: string; allowedScopes: string[] };
+  partner?: { id: string };
 }
 
 export const hashApiKey = hashSecret;
@@ -23,6 +23,6 @@ export async function requirePartner(
   if (!partner) {
     return res.status(401).json({ error: "invalid api key" });
   }
-  req.partner = { id: partner.id, allowedScopes: partner.allowedScopes };
+  req.partner = { id: partner.id };
   next();
 }

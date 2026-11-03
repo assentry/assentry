@@ -9,7 +9,6 @@ verifyRouter.use(requirePartner);
 
 const verifySchema = z.object({
   credential: z.string().min(1),
-  action: z.string().min(1), // the scope the partner expects, e.g. "job_application:submit"
 });
 
 // This is the handshake described to design partners: a direct exchange
@@ -20,10 +19,10 @@ verifyRouter.post("/", async (req: PartnerRequest, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
-  const { credential, action } = parsed.data;
+  const { credential } = parsed.data;
   const partnerId = req.partner!.id;
 
-  const resolution = await resolveGrant(credential, req.partner!.allowedScopes);
+  const resolution = await resolveGrant(credential);
 
   if (!resolution.valid) {
     await prisma.auditLog.create({
@@ -35,13 +34,11 @@ verifyRouter.post("/", async (req: PartnerRequest, res) => {
         action: "verify",
         result: "denied",
         reason: resolution.reason,
-        metadata: { requestedAction: action },
+        metadata: {},
       },
     });
     return res.json({ valid: false, reason: resolution.reason });
   }
-
-  const scopeMatches = resolution.grant.scope === action;
 
   await prisma.auditLog.create({
     data: {
@@ -50,21 +47,16 @@ verifyRouter.post("/", async (req: PartnerRequest, res) => {
       grantId: resolution.grant.id,
       partnerId,
       action: "verify",
-      result: scopeMatches ? "allowed" : "denied",
-      reason: scopeMatches ? "ok" : "scope_mismatch",
-      metadata: { requestedAction: action },
+      result: "allowed",
+      reason: "ok",
+      metadata: {},
     },
   });
-
-  if (!scopeMatches) {
-    return res.json({ valid: false, reason: "scope_mismatch" });
-  }
 
   res.json({
     valid: true,
     userId: resolution.user.id,
     agentId: resolution.agent.id,
-    scope: resolution.grant.scope,
     expiresAt: resolution.grant.expiresAt,
   });
 });

@@ -17,7 +17,6 @@ export interface Agent {
 export interface Grant {
   id: string;
   agentId: string;
-  scope: string;
   consentedFields: string[];
   expiresAt: string;
   revokedAt: string | null;

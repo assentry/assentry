@@ -25,7 +25,7 @@ profileRouter.post("/", async (req: PartnerRequest, res) => {
   const { credential, fields } = parsed.data;
   const partnerId = req.partner!.id;
 
-  const resolution = await resolveGrant(credential, req.partner!.allowedScopes);
+  const resolution = await resolveGrant(credential);
 
   if (!resolution.valid) {
     await prisma.auditLog.create({

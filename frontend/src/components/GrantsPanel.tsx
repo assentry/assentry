@@ -2,8 +2,15 @@
 
 import { useState } from "react";
 import { api } from "../lib/api";
-import type { Agent, Grant } from "../lib/types";
+import type { Agent, Grant, Platform } from "../lib/types";
 import { Badge, Button, Card, EmptyState, Input, Label, MultiSelect, Select } from "./ui";
+
+const PLATFORM_LABELS: Record<Platform, string> = {
+  claude: "Claude",
+  chatgpt: "ChatGPT",
+  grok: "Grok",
+  other: "Other",
+};
 
 const FIELD_OPTIONS = [
   { value: "name", label: "Name" },
@@ -30,7 +37,6 @@ export function GrantsPanel({
 }) {
   const activeAgents = agents.filter((a) => !a.revokedAt);
   const [agentId, setAgentId] = useState(activeAgents[0]?.id ?? "");
-  const [scope, setScope] = useState("job_application:submit");
   const [fields, setFields] = useState<string[]>(["name", "email", "resume"]);
   const [minutes, setMinutes] = useState(60);
   const [busy, setBusy] = useState(false);
@@ -45,7 +51,6 @@ export function GrantsPanel({
     try {
       const data = await api.post<{ credential: string }>("/grants", {
         agentId,
-        scope,
         consentedFields: fields,
         expiresInMinutes: Number(minutes),
       });
@@ -73,8 +78,8 @@ export function GrantsPanel({
       <Card>
         <h2 className="mb-1 text-sm font-semibold text-white">Authorise an agent</h2>
         <p className="mb-4 text-sm text-slate-400">
-          Grant one agent permission to do one specific thing, for a bounded time. This is the
-          consent record a participating site verifies — not a password.
+          Authorise an agent to act on your behalf, with only the data fields you choose, for a
+          bounded time. This is the consent record a participating site verifies — not a password.
         </p>
 
         {activeAgents.length === 0 ? (
@@ -91,10 +96,6 @@ export function GrantsPanel({
                     </option>
                   ))}
                 </Select>
-              </div>
-              <div>
-                <Label>Scope</Label>
-                <Input value={scope} onChange={(e) => setScope(e.target.value)} />
               </div>
               <div>
                 <Label>Consented fields</Label>
@@ -142,10 +143,12 @@ export function GrantsPanel({
           <ul className="divide-y divide-white/10">
             {grants.map((grant) => {
               const status = grantStatus(grant);
+              const agent = agents.find((a) => a.id === grant.agentId);
+              const agentName = agent?.label || PLATFORM_LABELS[agent?.platform ?? "other"];
               return (
                 <li key={grant.id} className="flex items-center justify-between py-3 gap-4">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-100">{grant.scope}</p>
+                    <p className="truncate text-sm font-medium text-slate-100">{agentName}</p>
                     <p className="text-xs text-slate-500">
                       Expires {new Date(grant.expiresAt).toLocaleString()} ·{" "}
                       {grant.consentedFields.join(", ") || "no data fields"}

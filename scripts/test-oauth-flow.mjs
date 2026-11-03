@@ -136,7 +136,6 @@ async function main() {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${userToken}` },
     body: JSON.stringify({
       agentId: agent.id,
-      scope: "job_application:submit",
       consentedFields: ["name", "email", "resume"],
       expiresInMinutes: 60,
     }),

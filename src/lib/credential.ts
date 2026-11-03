@@ -10,7 +10,6 @@ export interface GrantCredentialPayload {
   grantId: string;
   userId: string;
   agentId: string;
-  scope: string;
 }
 
 export function issueCredential(
