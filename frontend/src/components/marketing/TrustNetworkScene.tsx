@@ -1,8 +1,8 @@
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float, Line, Sparkles, Text } from "@react-three/drei";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 // The three entities HAPI connects, arranged as spokes around a central hub —
@@ -53,6 +53,27 @@ function NodeSphere({
       </group>
     </Float>
   );
+}
+
+// At narrow (mobile) aspect ratios, a fixed camera distance clips the Human
+// and Website nodes — they sit at a fixed world-space x offset, but the
+// visible horizontal extent at a given depth shrinks with the aspect ratio.
+// Push the camera back as the canvas gets narrower so all three entities
+// stay in frame.
+function ResponsiveCamera() {
+  const { camera, size } = useThree();
+
+  useEffect(() => {
+    const perspective = camera as THREE.PerspectiveCamera;
+    const aspect = size.width / size.height;
+    const fovRad = (perspective.fov * Math.PI) / 180;
+    const requiredHalfWidth = 4.2;
+    const requiredDistance = requiredHalfWidth / (Math.tan(fovRad / 2) * aspect);
+    perspective.position.z = Math.max(8.5, requiredDistance);
+    perspective.updateProjectionMatrix();
+  }, [camera, size]);
+
+  return null;
 }
 
 function Hub() {
@@ -186,6 +207,7 @@ export default function TrustNetworkScene() {
       dpr={[1, 1.75]}
       gl={{ antialias: true, alpha: true }}
     >
+      <ResponsiveCamera />
       <TrustNetwork />
     </Canvas>
   );
