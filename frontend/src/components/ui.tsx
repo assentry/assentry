@@ -1,12 +1,12 @@
+"use client";
+
 import { Check, ChevronDown, Plus, X } from "lucide-react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { useEffect, useRef, useState } from "react";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div
-      className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-900/[0.03] transition-shadow duration-200 hover:shadow-md hover:shadow-slate-900/[0.06] ${className}`}
-    >
+    <div className={`glass rounded-2xl p-6 transition-colors duration-200 hover:bg-white/[0.06] ${className}`}>
       {children}
     </div>
   );
@@ -16,10 +16,11 @@ type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary:
-    "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm shadow-indigo-600/20 hover:shadow-md hover:shadow-indigo-600/25 hover:brightness-105 focus-visible:outline-indigo-600",
-  secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline-slate-400",
-  danger: "border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 focus-visible:outline-rose-500",
-  ghost: "text-slate-600 hover:bg-slate-100",
+    "bg-gradient-to-br from-cyan-400 to-violet-500 text-navy-950 shadow-sm shadow-cyan-500/20 hover:shadow-md hover:shadow-cyan-500/30 hover:brightness-105 focus-visible:outline-cyan-400",
+  secondary:
+    "border border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 focus-visible:outline-white/40",
+  danger: "border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 focus-visible:outline-rose-400",
+  ghost: "text-slate-300 hover:bg-white/5",
 };
 
 export function Button({
@@ -39,7 +40,7 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 ${props.className ?? ""}`}
+      className={`w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 ${props.className ?? ""}`}
     />
   );
 }
@@ -48,22 +49,22 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 ${props.className ?? ""}`}
+      className={`w-full rounded-lg border border-white/15 bg-navy-900 px-3 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 ${props.className ?? ""}`}
     />
   );
 }
 
 export function Label({ children }: { children: ReactNode }) {
-  return <label className="mb-1 block text-xs font-medium text-slate-500">{children}</label>;
+  return <label className="mb-1 block text-xs font-medium text-slate-400">{children}</label>;
 }
 
 type BadgeTone = "success" | "danger" | "warning" | "neutral";
 
 const badgeTones: Record<BadgeTone, string> = {
-  success: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  danger: "bg-rose-50 text-rose-700 ring-rose-600/20",
-  warning: "bg-amber-50 text-amber-700 ring-amber-600/20",
-  neutral: "bg-slate-100 text-slate-600 ring-slate-500/10",
+  success: "bg-cyan-400/10 text-cyan-300 ring-cyan-400/25",
+  danger: "bg-rose-500/10 text-rose-300 ring-rose-400/25",
+  warning: "bg-amber-400/10 text-amber-300 ring-amber-400/25",
+  neutral: "bg-white/5 text-slate-400 ring-white/10",
 };
 
 export function Badge({ tone, children }: { tone: BadgeTone; children: ReactNode }) {
@@ -78,18 +79,18 @@ export function Badge({ tone, children }: { tone: BadgeTone; children: ReactNode
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+    <p className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-8 text-center text-sm text-slate-400">
       {children}
     </p>
   );
 }
 
-type StatTone = "indigo" | "emerald" | "slate";
+type StatTone = "cyan" | "violet" | "slate";
 
 const statTones: Record<StatTone, { icon: string; ring: string }> = {
-  indigo: { icon: "bg-indigo-50 text-indigo-600", ring: "ring-indigo-600/10" },
-  emerald: { icon: "bg-emerald-50 text-emerald-600", ring: "ring-emerald-600/10" },
-  slate: { icon: "bg-slate-100 text-slate-600", ring: "ring-slate-500/10" },
+  cyan: { icon: "bg-cyan-400/10 text-cyan-300", ring: "ring-cyan-400/20" },
+  violet: { icon: "bg-violet-400/10 text-violet-300", ring: "ring-violet-400/20" },
+  slate: { icon: "bg-white/5 text-slate-300", ring: "ring-white/10" },
 };
 
 export function MultiSelect({
@@ -142,19 +143,19 @@ export function MultiSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full min-h-[38px] flex-wrap items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-left text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        className="flex w-full min-h-[38px] flex-wrap items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-left text-sm focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400"
       >
         {selected.length === 0 ? (
-          <span className="text-slate-400">{placeholder}</span>
+          <span className="text-slate-500">{placeholder}</span>
         ) : (
           selected.map((value) => (
             <span
               key={value}
-              className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700"
+              className="inline-flex items-center gap-1 rounded-md bg-cyan-400/10 px-1.5 py-0.5 text-xs font-medium text-cyan-300"
             >
               {labelFor(value)}
               <X
-                className="h-3 w-3 cursor-pointer hover:text-indigo-900"
+                className="h-3 w-3 cursor-pointer hover:text-cyan-100"
                 onClick={(e) => {
                   e.stopPropagation();
                   remove(value);
@@ -163,11 +164,11 @@ export function MultiSelect({
             </span>
           ))
         )}
-        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
+        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-slate-500" />
       </button>
 
       {open && (
-        <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+        <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/10 bg-navy-900 p-1.5 shadow-xl shadow-black/40">
           {options.map((option) => {
             const checked = selected.includes(option.value);
             return (
@@ -175,16 +176,16 @@ export function MultiSelect({
                 key={option.value}
                 type="button"
                 onClick={() => toggle(option.value)}
-                className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-sm hover:bg-slate-50"
+                className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-sm hover:bg-white/5"
               >
-                <span className="text-slate-700">{option.label}</span>
-                {checked && <Check className="h-4 w-4 text-indigo-600" />}
+                <span className="text-slate-300">{option.label}</span>
+                {checked && <Check className="h-4 w-4 text-cyan-400" />}
               </button>
             );
           })}
 
           {allowCustom && (
-            <div className="mt-1 flex items-center gap-1.5 border-t border-slate-100 p-1.5 pt-2">
+            <div className="mt-1 flex items-center gap-1.5 border-t border-white/10 p-1.5 pt-2">
               <input
                 value={customValue}
                 onChange={(e) => setCustomValue(e.target.value)}
@@ -195,12 +196,12 @@ export function MultiSelect({
                   }
                 }}
                 placeholder="Custom field…"
-                className="w-full min-w-0 rounded-md border border-slate-200 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none"
+                className="w-full min-w-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-200 focus:border-cyan-400 focus:outline-none"
               />
               <button
                 type="button"
                 onClick={addCustom}
-                className="flex shrink-0 items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                className="flex shrink-0 items-center gap-1 rounded-md bg-white/5 px-2 py-1 text-xs font-medium text-slate-300 hover:bg-white/10"
               >
                 <Plus className="h-3 w-3" /> Add
               </button>
@@ -217,7 +218,7 @@ export function StatCard({
   value,
   hint,
   icon,
-  tone = "indigo",
+  tone = "cyan",
 }: {
   label: string;
   value: string | number;
@@ -227,13 +228,15 @@ export function StatCard({
 }) {
   return (
     <Card className="flex items-start gap-4">
-      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${statTones[tone].icon} ${statTones[tone].ring}`}>
+      <div
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${statTones[tone].icon} ${statTones[tone].ring}`}
+      >
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-sm text-slate-500">{label}</p>
-        <p className="text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
-        {hint && <p className="mt-0.5 truncate text-xs text-slate-400">{hint}</p>}
+        <p className="text-sm text-slate-400">{label}</p>
+        <p className="text-2xl font-semibold tracking-tight text-white">{value}</p>
+        {hint && <p className="mt-0.5 truncate text-xs text-slate-500">{hint}</p>}
       </div>
     </Card>
   );

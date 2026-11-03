@@ -1,18 +1,40 @@
-import { useEffect, useState } from "react";
-import { AgentsPanel } from "../components/AgentsPanel";
-import { AuditPanel } from "../components/AuditPanel";
-import { GrantsPanel } from "../components/GrantsPanel";
-import { OverviewPanel } from "../components/OverviewPanel";
-import { Sidebar, type Tab } from "../components/Sidebar";
-import { api, clearToken } from "../lib/api";
-import type { Agent, AuditLog, Grant, User } from "../lib/types";
+"use client";
 
-export function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { AgentsPanel } from "../../components/AgentsPanel";
+import { AuditPanel } from "../../components/AuditPanel";
+import { GrantsPanel } from "../../components/GrantsPanel";
+import { OverviewPanel } from "../../components/OverviewPanel";
+import { Sidebar, type Tab } from "../../components/Sidebar";
+import { api, clearToken, getToken } from "../../lib/api";
+import type { Agent, AuditLog, Grant, User } from "../../lib/types";
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [tab, setTab] = useState<Tab>("overview");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [grants, setGrants] = useState<Grant[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+    api
+      .get<{ user: User }>("/auth/me")
+      .then((data) => setUser(data.user))
+      .catch(() => {
+        clearToken();
+        router.replace("/login");
+      })
+      .finally(() => setCheckingSession(false));
+  }, [router]);
 
   async function refreshAgents() {
     const data = await api.get<{ agents: Agent[] }>("/agents");
@@ -31,13 +53,17 @@ export function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => vo
   }
 
   useEffect(() => {
+    if (!user) return;
     refreshAll().finally(() => setLoading(false));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   function signOut() {
     clearToken();
-    onSignOut();
+    router.replace("/login");
   }
+
+  if (checkingSession || !user) return null;
 
   const TITLES: Record<Tab, string> = {
     overview: "Overview",
@@ -47,12 +73,12 @@ export function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => vo
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 lg:flex-row">
+    <div className="flex min-h-screen flex-col bg-navy-950 lg:flex-row">
       <Sidebar tab={tab} onTabChange={setTab} email={user.email} onSignOut={signOut} />
 
       <div className="flex-1 overflow-y-auto">
-        <header className="sticky top-0 z-10 hidden border-b border-slate-200 bg-slate-50/80 px-8 py-4 backdrop-blur lg:block">
-          <h2 className="text-sm font-medium text-slate-500">{TITLES[tab]}</h2>
+        <header className="sticky top-0 z-10 hidden border-b border-white/10 bg-navy-950/80 px-8 py-4 backdrop-blur lg:block">
+          <h2 className="text-sm font-medium text-slate-400">{TITLES[tab]}</h2>
         </header>
 
         <main className="mx-auto max-w-4xl px-4 py-6 sm:px-8 sm:py-8">
@@ -75,13 +101,13 @@ export function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => vo
 function DashboardSkeleton() {
   return (
     <div className="animate-pulse space-y-4">
-      <div className="h-24 rounded-2xl bg-slate-200/70" />
+      <div className="h-24 rounded-2xl bg-white/5" />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="h-24 rounded-2xl bg-slate-200/70" />
-        <div className="h-24 rounded-2xl bg-slate-200/70" />
-        <div className="h-24 rounded-2xl bg-slate-200/70" />
+        <div className="h-24 rounded-2xl bg-white/5" />
+        <div className="h-24 rounded-2xl bg-white/5" />
+        <div className="h-24 rounded-2xl bg-white/5" />
       </div>
-      <div className="h-40 rounded-2xl bg-slate-200/70" />
+      <div className="h-40 rounded-2xl bg-white/5" />
     </div>
   );
 }

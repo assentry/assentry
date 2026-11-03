@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { Agent, Grant } from "../lib/types";
@@ -69,8 +71,8 @@ export function GrantsPanel({
   return (
     <div className="space-y-6">
       <Card>
-        <h2 className="mb-1 text-sm font-semibold text-slate-900">Authorise an agent</h2>
-        <p className="mb-4 text-sm text-slate-500">
+        <h2 className="mb-1 text-sm font-semibold text-white">Authorise an agent</h2>
+        <p className="mb-4 text-sm text-slate-400">
           Grant one agent permission to do one specific thing, for a bounded time. This is the
           consent record a participating site verifies — not a password.
         </p>
@@ -115,13 +117,13 @@ export function GrantsPanel({
         )}
 
         {issuedCredential && (
-          <div className="mt-4 rounded-lg border border-indigo-100 bg-indigo-50 p-4">
-            <p className="mb-2 text-sm font-medium text-indigo-900">
+          <div className="mt-4 rounded-lg border border-cyan-400/20 bg-cyan-400/5 p-4">
+            <p className="mb-2 text-sm font-medium text-cyan-200">
               Credential issued — this is what the agent carries and presents. It won't be shown
               again.
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 overflow-x-auto rounded bg-white px-2 py-1.5 text-xs text-slate-700">
+              <code className="flex-1 overflow-x-auto rounded bg-navy-950 px-2 py-1.5 text-xs text-slate-300">
                 {issuedCredential}
               </code>
               <Button variant="secondary" onClick={copyCredential} type="button">
@@ -133,17 +135,17 @@ export function GrantsPanel({
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-sm font-semibold text-slate-900">Authorisations</h2>
+        <h2 className="mb-4 text-sm font-semibold text-white">Authorisations</h2>
         {grants.length === 0 ? (
           <EmptyState>No authorisations issued yet.</EmptyState>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-white/10">
             {grants.map((grant) => {
               const status = grantStatus(grant);
               return (
                 <li key={grant.id} className="flex items-center justify-between py-3 gap-4">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-900">{grant.scope}</p>
+                    <p className="truncate text-sm font-medium text-slate-100">{grant.scope}</p>
                     <p className="text-xs text-slate-500">
                       Expires {new Date(grant.expiresAt).toLocaleString()} ·{" "}
                       {grant.consentedFields.join(", ") || "no data fields"}

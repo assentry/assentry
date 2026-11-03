@@ -24,7 +24,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(express.static("public"));
+// The personal app + marketing site used to be built into public/ and
+// served from here; they're now their own Next.js deployment (hapi-frontend)
+// that talks to this API over HTTP, so there's no longer anything to serve.
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 

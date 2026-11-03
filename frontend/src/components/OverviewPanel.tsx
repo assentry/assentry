@@ -24,10 +24,10 @@ export function OverviewPanel({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
           Welcome back{user.name ? `, ${user.name}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-400">
           Here's what your connected agents are currently authorised to do.
         </p>
       </div>
@@ -38,14 +38,14 @@ export function OverviewPanel({
           value={activeAgents.length}
           hint={`${agents.length} total`}
           icon={<Bot className="h-5 w-5" strokeWidth={2} />}
-          tone="indigo"
+          tone="cyan"
         />
         <StatCard
           label="Active authorisations"
           value={activeGrants.length}
           hint={`${grants.length} issued all-time`}
           icon={<ShieldCheck className="h-5 w-5" strokeWidth={2} />}
-          tone="emerald"
+          tone="violet"
         />
         <StatCard
           label="Actions logged"
@@ -57,15 +57,15 @@ export function OverviewPanel({
       </div>
 
       <Card>
-        <h2 className="mb-4 text-sm font-semibold text-slate-900">Recent activity</h2>
+        <h2 className="mb-4 text-sm font-semibold text-white">Recent activity</h2>
         {recentLogs.length === 0 ? (
           <EmptyState>Nothing's happened yet — connect and authorise an agent to get started.</EmptyState>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-white/10">
             {recentLogs.map((log) => (
               <li key={log.id} className="flex items-center justify-between py-3 text-sm">
                 <div className="min-w-0">
-                  <p className="font-medium text-slate-900">{log.action}</p>
+                  <p className="font-medium text-slate-100">{log.action}</p>
                   <p className="truncate text-xs text-slate-500">
                     {new Date(log.createdAt).toLocaleString()}
                     {log.partner?.name ? ` · ${log.partner.name}` : ""}

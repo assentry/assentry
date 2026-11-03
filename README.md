@@ -15,7 +15,7 @@ Identity, grant, verification, audit, partner SDK and OAuth-connected agent acce
 - **Account linking** (`/link/*`) — the explicit, stronger-assurance way to handle a partner's *existing* accounts (created before HAPI existed): a one-time, human-driven confirmation that the partner stores as a mapping, no password needed from then on. This is an alternative, not the primary path — see below.
 - **Implicit matching, no new HAPI infrastructure** — the primary intended way to handle existing accounts: a partner's own backend decides, using only what `/verify` + `/profile` already disclose, whether to match an existing account or create one. HAPI's job stops at proving who the agent represents; what a site does with that proof is the site's business. `examples/demo-job-board`'s `/apply` demonstrates this (match/create by email). See "What 'the agent logs in' actually means" in `STRATEGY.md` §9 for the full model, and the known gap this accepts (HAPI doesn't verify email yet, so this trusts an unverified claim for now — real identity verification, KYC, and liveness checks are future work, not forgotten).
 
-The personal app (consent UI) lives in `frontend/` — a React + TypeScript + Tailwind app. In dev it runs on its own Vite server and proxies API calls to the backend; in production it's built into `public/` and served directly by the backend. Its Agents tab shows the `/mcp` address to paste into an AI's own connector settings — that's the only "setup" a person ever does; everything else happens via the OAuth login/consent redirect.
+The marketing site and personal app (consent UI) live in `frontend/` — a Next.js + TypeScript + Tailwind app, deployed as its own service (`hapi-frontend`) and talking to this API over HTTP via `NEXT_PUBLIC_API_BASE_URL` (CORS-open, Bearer-token auth — no cookies, so no credentialed-CORS setup needed). Its Agents tab shows the `/mcp` address to paste into an AI's own connector settings — that's the only "setup" a person ever does; everything else happens via the OAuth login/consent redirect.
 
 Partner sites integrate via `@hapi-id/sdk` ([separate public repo](https://github.com/bioku-QR/hapi-sdk), MIT licensed) rather than calling `/verify` and `/profile` directly — a thin client plus an Express `requireGrant` middleware. `examples/demo-job-board` is a runnable partner site built on it (installed as a real external dependency, not a local path), used both as SDK test coverage and as the integration reference for design partners.
 
@@ -30,10 +30,10 @@ npx prisma migrate dev --name init
 npm run seed:partner             # prints a demo partner API key — save it, shown once
 npm run dev                      # backend on http://localhost:4000
 
-cd frontend && npm install && npm run dev   # personal app on http://localhost:5173
+cd frontend && npm install && npm run dev   # marketing site + personal app on http://localhost:3000
 ```
 
-Open `http://localhost:5173` for the consent UI in dev (hot reload), or `http://localhost:4000` after running `npm run build` in `frontend/`. Drive the partner-facing API directly — see the handshake example below.
+Open `http://localhost:3000` for the marketing site and consent UI in dev (hot reload) — it defaults to calling the backend at `http://localhost:4000`; override with `NEXT_PUBLIC_API_BASE_URL` if needed. Drive the partner-facing API directly — see the handshake example below.
 
 ## Partner handshake example
 
