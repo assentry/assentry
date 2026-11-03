@@ -16,7 +16,7 @@ export function Footer() {
           <a href="#for-people" className="hover:text-white">
             For People
           </a>
-          <a href="#for-developers" className="hover:text-white">
+          <a href="/developers" className="hover:text-white">
             For Developers
           </a>
           <a href="#our-vision" className="hover:text-white">
