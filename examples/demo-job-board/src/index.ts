@@ -1,4 +1,4 @@
-import { getCredentialFromRequest, HAPI, HAPIRequestError, hapiDiscovery } from "@hapi-id/sdk";
+import { declareDiscoverableRoute, getCredentialFromRequest, HAPI, HAPIRequestError, hapiDiscovery } from "@hapi-id/sdk";
 import bcrypt from "bcrypt";
 import cookieParser from "cookie-parser";
 import express from "express";
@@ -22,19 +22,9 @@ app.use(cookieParser());
 // Makes this site discoverable to an agent the moment it reaches *any* page
 // here — not just /login — so a generic instruction doesn't dead-end at the
 // human login wall with no way through. See @hapi-id/sdk's README for what
-// this adds to every response.
-app.use(
-  hapiDiscovery({
-    partnerName: "Demo Job Board",
-    routes: [
-      {
-        path: "/dashboard",
-        method: "GET",
-        description: "View the content behind this site's login, authorised via your HAPI credential",
-      },
-    ],
-  })
-);
+// this adds to every response. No routes list to pass in here — each
+// protected route declares itself where it's actually defined, below.
+app.use(hapiDiscovery({ partnerName: "Demo Job Board" }));
 
 // Stands in for this site's own user database. Keyed by the site's own
 // account id, holding whatever HAPI userId has been linked to it (case 2 —
@@ -163,7 +153,15 @@ app.post("/login", async (req, res) => {
 // a HAPI credential (the standard Authorization: Bearer header — no
 // site-specific convention to guess). Neither path knows or cares that the
 // other exists; that's the point of HAPI coexisting with a site's existing
-// login rather than replacing it.
+// login rather than replacing it. Declared here, not via requireGrant's
+// `discover` option, since this route can't use requireGrant directly —
+// it has to accept a session as an alternative to a credential.
+declareDiscoverableRoute({
+  path: "/dashboard",
+  method: "GET",
+  description: "View the content behind this site's login, authorised via your HAPI credential",
+});
+
 app.get("/dashboard", async (req, res) => {
   const sessionEmail = req.cookies?.session_email as string | undefined;
   if (sessionEmail && traditionalAccounts.has(sessionEmail)) {
