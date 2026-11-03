@@ -1,27 +1,8 @@
-import { Activity, Plug, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Button, Input, Label } from "../components/ui";
 import { Logo } from "../components/Logo";
 import { api, ApiError, setToken } from "../lib/api";
 import type { User } from "../lib/types";
-
-const FEATURES = [
-  {
-    icon: Plug,
-    title: "Connect once",
-    body: "One connection to your AI — not a separate one for every site it acts on.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Scoped, revocable permission",
-    body: "Authorise exactly what's needed, for exactly how long, and pull it back anytime.",
-  },
-  {
-    icon: Activity,
-    title: "A record of everything",
-    body: "See every time your identity was used, and by whom, in one place.",
-  },
-];
 
 export function AuthPage({
   onAuthenticated,
@@ -57,56 +38,32 @@ export function AuthPage({
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Brand panel */}
-      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-slate-900 p-12 lg:flex">
-        <div
-          className="pointer-events-none absolute -top-32 -right-32 h-96 w-96 rounded-full bg-gradient-to-br from-indigo-500/30 to-violet-600/20 blur-3xl"
-          aria-hidden
-        />
-        {onBack ? (
-          <button onClick={onBack} className="w-fit">
-            <Logo variant="dark" />
-          </button>
-        ) : (
-          <Logo variant="dark" />
-        )}
+    <div
+      className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12"
+      style={{ background: "linear-gradient(180deg, #3b4766 0%, #4f5d80 55%, #5a6890 100%)" }}
+    >
+      {/* Same ambient texture as the landing page, for visual continuity */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-40"
+        style={{
+          backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)",
+          backgroundSize: "22px 22px",
+        }}
+      />
+      <div className="pointer-events-none absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-400/25 blur-3xl" />
 
-        <div className="relative">
-          <h1 className="max-w-md text-3xl font-semibold tracking-tight text-white">
-            The identity layer between you, your AI agents, and the sites they act on.
-          </h1>
-          <div className="mt-10 space-y-6">
-            {FEATURES.map(({ icon: Icon, title, body }) => (
-              <div key={title} className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white">
-                  <Icon className="h-4 w-4" strokeWidth={2} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">{title}</p>
-                  <p className="mt-0.5 text-sm text-slate-400">{body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="relative w-full max-w-sm">
+        <div className="mb-6 flex justify-center">
+          {onBack ? (
+            <button onClick={onBack}>
+              <Logo variant="dark" />
+            </button>
+          ) : (
+            <Logo variant="dark" />
+          )}
         </div>
 
-        <p className="relative text-xs text-slate-500">Human API</p>
-      </div>
-
-      {/* Form panel */}
-      <div className="flex w-full flex-col items-center justify-center bg-white px-6 py-12 lg:w-1/2">
-        <div className="w-full max-w-sm">
-          <div className="mb-8 lg:hidden">
-            {onBack ? (
-              <button onClick={onBack}>
-                <Logo />
-              </button>
-            ) : (
-              <Logo />
-            )}
-          </div>
-
+        <div className="rounded-2xl border border-white/15 bg-white/95 p-7 shadow-2xl shadow-slate-900/30 backdrop-blur-sm">
           <div className="mb-6 flex rounded-lg bg-slate-100 p-1 text-sm">
             <button
               type="button"
