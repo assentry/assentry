@@ -5,6 +5,7 @@ import express from "express";
 import { agentsRouter } from "./routes/agents";
 import { auditRouter } from "./routes/audit";
 import { authRouter } from "./routes/auth";
+import { developerRouter } from "./routes/developer";
 import { grantsRouter } from "./routes/grants";
 import { linkRouter } from "./routes/link";
 import { mcpHttpRouter } from "./routes/mcpHttp";
@@ -12,7 +13,6 @@ import { oauthAuthorizeRouter } from "./routes/oauthAuthorize";
 import { oauthClientsRouter } from "./routes/oauthClients";
 import { oauthMetaRouter } from "./routes/oauthMeta";
 import { oauthTokenRouter } from "./routes/oauthToken";
-import { partnersRouter } from "./routes/partners";
 import { profileRouter } from "./routes/profile";
 import { verifyRouter } from "./routes/verify";
 
@@ -41,9 +41,9 @@ app.use("/audit", auditRouter);
 app.use("/verify", verifyRouter);
 app.use("/profile", profileRouter);
 
-// Self-service partner signup — getting an API key, not yet authenticated
-// by one.
-app.use("/partners", partnersRouter);
+// Developer console: developer accounts and the partner apps/API keys they
+// own. Separate session type from the personal app's.
+app.use("/developer", developerRouter);
 
 // OAuth: lets an MCP client (Claude, etc.) connect without a human ever
 // handling a key — discovery metadata, dynamic client registration, the

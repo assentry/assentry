@@ -5,6 +5,10 @@ const JWT_SECRET = process.env.JWT_SECRET!;
 
 export interface UserSession {
   sub: string; // userId
+  // Absent on end-user sessions (including every token issued before
+  // developer accounts existed). Developer sessions set this to
+  // "developer" and are rejected here — see lib/developerAuth.ts.
+  kind?: string;
 }
 
 export function signUserSession(userId: string): string {
@@ -34,6 +38,9 @@ export function requireUser(
       header.slice("Bearer ".length),
       JWT_SECRET
     ) as UserSession;
+    if (typeof payload.sub !== "string" || payload.kind !== undefined) {
+      return res.status(401).json({ error: "invalid or expired session" });
+    }
     req.userId = payload.sub;
     next();
   } catch {

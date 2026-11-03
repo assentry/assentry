@@ -13,6 +13,7 @@ async function main() {
     data: {
       name,
       apiKeyHash: hashApiKey(apiKey),
+      apiKeyPreview: `${apiKey.slice(0, 12)}…`,
       linkRedirectUris: [linkRedirectUri],
     },
   });

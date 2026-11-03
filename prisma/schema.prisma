@@ -103,11 +103,36 @@ model OAuthAuthorizationCode {
 }
 
 // Layer 3: Business. A participating site/service that verifies grants.
+// A developer integrating HAPI into their own site. Deliberately a separate
+// account from User (an end user's identity) — the two are different
+// audiences with different trust boundaries, and their session tokens are
+// not interchangeable (see lib/developerAuth.ts).
+model Developer {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+
+  partners Partner[]
+}
+
 model Partner {
   id           String   @id @default(uuid())
   name         String
   apiKeyHash   String   @unique
   createdAt    DateTime @default(now())
+
+  // Owning developer. Nullable: partners created before developer accounts
+  // existed (e.g. the demo job board) have no owner and can't be managed
+  // from the console.
+  developerId String?
+  developer   Developer? @relation(fields: [developerId], references: [id])
+  // Non-secret prefix of the current key, so a developer can tell keys
+  // apart in the console. The full key is never stored.
+  apiKeyPreview String?
+  // A revoked partner's key is rejected everywhere (requirePartner).
+  revokedAt DateTime?
 
   // Safe to put in a browser-facing URL (unlike id/apiKeyHash semantics —
   // id already is, but this makes the "safe to expose" contract explicit

@@ -20,7 +20,8 @@ export async function requirePartner(
   const partner = await prisma.partner.findUnique({
     where: { apiKeyHash: hashApiKey(apiKey) },
   });
-  if (!partner) {
+  // A revoked key gets exactly the same response as an unknown one.
+  if (!partner || partner.revokedAt) {
     return res.status(401).json({ error: "invalid api key" });
   }
   req.partner = { id: partner.id };

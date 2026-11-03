@@ -16,7 +16,7 @@ export const linkRouter = Router();
 
 async function resolvePartnerForLink(publicId: string, redirectUri: string) {
   const partner = await prisma.partner.findUnique({ where: { publicId } });
-  if (!partner || !partner.linkRedirectUris.includes(redirectUri)) return null;
+  if (!partner || partner.revokedAt || !partner.linkRedirectUris.includes(redirectUri)) return null;
   return partner;
 }
 

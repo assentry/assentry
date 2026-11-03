@@ -14,7 +14,9 @@ export function signOAuthSession(userId: string): string {
 
 export function verifyOAuthSession(token: string): string | null {
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { sub: string };
+    const payload = jwt.verify(token, JWT_SECRET) as { sub?: string; kind?: string };
+    // Developer sessions (kind: "developer") are never end-user sessions.
+    if (typeof payload.sub !== "string" || payload.kind !== undefined) return null;
     return payload.sub;
   } catch {
     return null;
