@@ -12,6 +12,7 @@ import { oauthAuthorizeRouter } from "./routes/oauthAuthorize";
 import { oauthClientsRouter } from "./routes/oauthClients";
 import { oauthMetaRouter } from "./routes/oauthMeta";
 import { oauthTokenRouter } from "./routes/oauthToken";
+import { partnersRouter } from "./routes/partners";
 import { profileRouter } from "./routes/profile";
 import { verifyRouter } from "./routes/verify";
 
@@ -39,6 +40,10 @@ app.use("/audit", auditRouter);
 // Partner-facing (business SDK), API-key authenticated.
 app.use("/verify", verifyRouter);
 app.use("/profile", profileRouter);
+
+// Self-service partner signup — getting an API key, not yet authenticated
+// by one.
+app.use("/partners", partnersRouter);
 
 // OAuth: lets an MCP client (Claude, etc.) connect without a human ever
 // handling a key — discovery metadata, dynamic client registration, the

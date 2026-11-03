@@ -51,17 +51,17 @@ export function Hero() {
           className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row"
         >
           <Link
-            href="/signup"
+            href="/developers"
             className="rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 px-8 py-3.5 text-sm font-semibold text-navy-950 shadow-lg shadow-cyan-500/25 transition-transform hover:scale-105"
           >
-            Explore HAPI
+            For Developers
           </Link>
-          <a
-            href="#how-it-works"
+          <Link
+            href="/signup"
             className="rounded-full border border-white/15 px-8 py-3.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/5"
           >
-            How It Works
-          </a>
+            For End Users
+          </Link>
         </motion.div>
 
         <motion.div
