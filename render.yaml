@@ -31,20 +31,3 @@ services:
       # this to assentry-backend's public Render URL after its first deploy.
       - key: NEXT_PUBLIC_API_BASE_URL
         sync: false
-
-  - type: web
-    name: demo-site
-    runtime: node
-    plan: free
-    buildCommand: cd examples/demo-site && npm install --include=dev && npm run build
-    startCommand: node examples/demo-site/dist/index.js
-    envVars:
-      # Set these three after assentry-backend's first deploy: ASSENTRY_BASE_URL is
-      # its public Render URL, ASSENTRY_API_KEY and ASSENTRY_PARTNER_PUBLIC_ID come
-      # from running `npm run seed:partner` against the deployed database.
-      - key: ASSENTRY_BASE_URL
-        sync: false
-      - key: ASSENTRY_API_KEY
-        sync: false
-      - key: ASSENTRY_PARTNER_PUBLIC_ID
-        sync: false
