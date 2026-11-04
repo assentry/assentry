@@ -14,10 +14,10 @@ const PLATFORM_LABELS: Record<Platform, string> = {
 };
 
 const PLATFORM_COLORS: Record<Platform, string> = {
-  claude: "bg-amber-400/10 text-amber-300",
-  chatgpt: "bg-emerald-400/10 text-emerald-300",
+  claude: "bg-white/10 text-neutral-300",
+  chatgpt: "bg-white/10 text-neutral-300",
   grok: "bg-white/5 text-slate-300",
-  other: "bg-cyan-400/10 text-cyan-300",
+  other: "bg-white/10 text-neutral-300",
 };
 
 // The address a person's AI connects to — not a secret. The frontend is now
@@ -117,7 +117,7 @@ export function AgentsPanel({ agents, onChange }: { agents: Agent[]; onChange: (
                 href={config.settingsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-medium text-cyan-300 hover:text-cyan-200"
+                className="inline-flex items-center gap-1 text-xs font-medium text-neutral-300 hover:text-neutral-200"
               >
                 Open {config.label} connector settings <ExternalLink className="h-3 w-3" />
               </a>

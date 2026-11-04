@@ -17,7 +17,7 @@ export function Footer() {
             Developers
           </a>
         </nav>
-        <Link href="/signup" className="text-sm font-medium text-cyan-300 hover:text-cyan-200">
+        <Link href="/signup" className="text-sm font-medium text-neutral-300 hover:text-neutral-200">
           Get Early Access →
         </Link>
       </div>

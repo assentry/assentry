@@ -25,11 +25,11 @@ export function DevelopersLanding() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-navy-950">
       <div className="grid-texture animate-drift pointer-events-none absolute -inset-20 opacity-40" />
-      <div className="animate-breathe pointer-events-none absolute left-1/2 top-24 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
+      <div className="animate-breathe pointer-events-none absolute left-1/2 top-24 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-white/10 blur-[120px]" />
       <DevHeader />
 
       <main className="relative mx-auto max-w-5xl px-6 py-16 sm:py-20">
-        <p className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium tracking-wide text-cyan-200">
+        <p className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium tracking-wide text-neutral-200">
           For developers
         </p>
         <h1 className="mt-5 max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-5xl">
@@ -44,7 +44,7 @@ export function DevelopersLanding() {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/developers/signup"
-            className="rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 px-7 py-3 text-center text-sm font-semibold text-navy-950 shadow-lg shadow-cyan-500/20 transition-transform hover:scale-105"
+            className="rounded-full bg-gradient-to-br from-white to-neutral-400 px-7 py-3 text-center text-sm font-semibold text-navy-950 shadow-lg shadow-black/40 transition-transform hover:scale-105"
           >
             Create a developer account
           </Link>
@@ -62,7 +62,7 @@ export function DevelopersLanding() {
         <div className="mt-14 grid gap-4 sm:grid-cols-3">
           {FEATURES.map(({ icon: Icon, title, body }) => (
             <div key={title} className="glass rounded-2xl p-6">
-              <Icon className="h-5 w-5 text-cyan-300" />
+              <Icon className="h-5 w-5 text-neutral-300" />
               <h2 className="mt-3 text-sm font-semibold text-white">{title}</h2>
               <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{body}</p>
             </div>
@@ -74,20 +74,20 @@ export function DevelopersLanding() {
             <h2 className="text-xl font-semibold text-white">Up and running in minutes</h2>
             <ol className="mt-4 space-y-3 text-sm text-slate-300">
               <li>
-                <span className="mr-2 font-mono text-cyan-300">1</span>Create a developer account and an app in
+                <span className="mr-2 font-mono text-neutral-300">1</span>Create a developer account and an app in
                 the console.
               </li>
               <li>
-                <span className="mr-2 font-mono text-cyan-300">2</span>Copy your API key — store it as a server
+                <span className="mr-2 font-mono text-neutral-300">2</span>Copy your API key — store it as a server
                 secret.
               </li>
               <li>
-                <span className="mr-2 font-mono text-cyan-300">3</span>Install the SDK and protect a route.
+                <span className="mr-2 font-mono text-neutral-300">3</span>Install the SDK and protect a route.
               </li>
             </ol>
             <Link
               href="/developers/docs#quickstart"
-              className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-cyan-300 hover:text-cyan-200"
+              className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-neutral-300 hover:text-neutral-200"
             >
               <BookOpen className="h-4 w-4" /> Full quickstart
             </Link>

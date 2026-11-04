@@ -37,7 +37,7 @@ export function AuthForm({ initialMode }: { initialMode: "login" | "signup" }) {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-navy-950 px-4 py-12">
       {/* Same ambient texture as the marketing page, for visual continuity */}
       <div className="grid-texture animate-drift pointer-events-none absolute -inset-20 opacity-40" />
-      <div className="animate-breathe pointer-events-none absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-400/15 blur-3xl" />
+      <div className="animate-breathe pointer-events-none absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/15 blur-3xl" />
 
       <div className="relative w-full max-w-sm">
         <div className="mb-6 flex justify-center">

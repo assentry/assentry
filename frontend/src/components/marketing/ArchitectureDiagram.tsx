@@ -41,18 +41,18 @@ const INSIDE: NodeId[] = ["grants", "oauth", "mcp", "verify", "audit"];
 const DESKTOP: Layout = {
   key: "d",
   width: 1000,
-  height: 540,
-  assentry: { x: 320, y: 20, w: 360, h: 500 },
+  height: 580,
+  assentry: { x: 320, y: 20, w: 360, h: 540 },
   nodes: {
     person: { x: 30, y: 70, w: 190, h: 66 },
     app: { x: 30, y: 300, w: 190, h: 66 },
     agent: { x: 780, y: 70, w: 190, h: 66 },
-    website: { x: 780, y: 307, w: 190, h: 66 },
+    website: { x: 780, y: 347, w: 190, h: 66 },
     grants: { x: 350, y: 70, w: 300, h: 60 },
     oauth: { x: 350, y: 150, w: 300, h: 60 },
-    mcp: { x: 350, y: 230, w: 300, h: 60 },
-    verify: { x: 350, y: 310, w: 300, h: 60 },
-    audit: { x: 350, y: 430, w: 300, h: 60 },
+    mcp: { x: 350, y: 270, w: 300, h: 60 },
+    verify: { x: 350, y: 350, w: 300, h: 60 },
+    audit: { x: 350, y: 470, w: 300, h: 60 },
   },
   titleSize: 15,
   subSize: 11,
@@ -61,8 +61,8 @@ const DESKTOP: Layout = {
 const MOBILE: Layout = {
   key: "m",
   width: 400,
-  height: 690,
-  assentry: { x: 12, y: 200, w: 376, h: 470 },
+  height: 730,
+  assentry: { x: 12, y: 200, w: 376, h: 510 },
   nodes: {
     person: { x: 12, y: 12, w: 182, h: 60 },
     agent: { x: 206, y: 12, w: 182, h: 60 },
@@ -70,9 +70,9 @@ const MOBILE: Layout = {
     website: { x: 206, y: 108, w: 182, h: 60 },
     grants: { x: 32, y: 244, w: 336, h: 56 },
     oauth: { x: 32, y: 316, w: 336, h: 56 },
-    mcp: { x: 32, y: 388, w: 336, h: 56 },
-    verify: { x: 32, y: 460, w: 336, h: 56 },
-    audit: { x: 32, y: 596, w: 336, h: 56 },
+    mcp: { x: 32, y: 428, w: 336, h: 56 },
+    verify: { x: 32, y: 500, w: 336, h: 56 },
+    audit: { x: 32, y: 636, w: 336, h: 56 },
   },
   titleSize: 14,
   subSize: 10,
@@ -327,7 +327,7 @@ function Diagram({
         </filter>
         {[
           ...STEPS.map((s, i) => ({ id: `arrow-${i}-${layout.key}`, color: s.color })),
-          { id: `arrow-dim-${layout.key}`, color: "rgba(148,163,184,0.35)" },
+          { id: `arrow-dim-${layout.key}`, color: "rgba(163,163,163,0.35)" },
         ].map((m) => (
           <marker key={m.id} id={m.id} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" fill={m.color} />
@@ -342,14 +342,14 @@ function Diagram({
         width={layout.assentry.w}
         height={layout.assentry.h}
         rx={24}
-        fill="rgba(34,211,238,0.035)"
-        stroke="rgba(34,211,238,0.3)"
+        fill="rgba(255,255,255,0.03)"
+        stroke="rgba(255,255,255,0.25)"
         strokeDasharray="6 6"
       />
       <text
         x={layout.assentry.x + 20}
         y={layout.assentry.y + 30}
-        fill="#67e8f9"
+        fill="#ffffff"
         fontSize={layout.titleSize + 1}
         fontWeight={700}
         letterSpacing="0.08em"
@@ -366,7 +366,7 @@ function Diagram({
             key={i}
             d={paths[i]}
             fill="none"
-            stroke={isLit ? s.color : "rgba(148,163,184,0.22)"}
+            stroke={isLit ? s.color : "rgba(163,163,163,0.22)"}
             strokeWidth={isLit ? 2.2 : 1.2}
             strokeDasharray={isLit ? "6 10" : "4 6"}
             className={isLit && !reduced ? "animate-dash" : undefined}
@@ -390,7 +390,7 @@ function Diagram({
               width={r.w}
               height={r.h}
               rx={14}
-              fill={inside ? "#0a1430" : "#0b1226"}
+              fill={inside ? "#171717" : "#0a0a0a"}
               stroke={color ?? "rgba(255,255,255,0.12)"}
               strokeWidth={color ? 2 : 1}
               filter={isActive ? `url(#${glow})` : undefined}
@@ -400,13 +400,13 @@ function Diagram({
               x={c.x}
               y={c.y - 3}
               textAnchor="middle"
-              fill={color ? "#ffffff" : "#e2e8f0"}
+              fill={color ? "#ffffff" : "#e5e5e5"}
               fontSize={layout.titleSize}
               fontWeight={600}
             >
               {NODE_TEXT[id].title}
             </text>
-            <text x={c.x} y={c.y + layout.subSize + 5} textAnchor="middle" fill="#94a3b8" fontSize={layout.subSize}>
+            <text x={c.x} y={c.y + layout.subSize + 5} textAnchor="middle" fill="#a3a3a3" fontSize={layout.subSize}>
               {NODE_TEXT[id].sub}
             </text>
           </g>

@@ -118,8 +118,8 @@ export function GrantsPanel({
         )}
 
         {issuedCredential && (
-          <div className="mt-4 rounded-lg border border-cyan-400/20 bg-cyan-400/5 p-4">
-            <p className="mb-2 text-sm font-medium text-cyan-200">
+          <div className="mt-4 rounded-lg border border-white/20 bg-white/5 p-4">
+            <p className="mb-2 text-sm font-medium text-neutral-200">
               Credential issued — this is what the agent carries and presents. It won't be shown
               again.
             </p>

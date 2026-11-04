@@ -37,12 +37,12 @@ function P({ children }: { children: ReactNode }) {
 }
 
 function C({ children }: { children: ReactNode }) {
-  return <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[0.85em] text-cyan-200">{children}</code>;
+  return <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[0.85em] text-neutral-200">{children}</code>;
 }
 
 function Note({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-4 rounded-xl border border-violet-400/25 bg-violet-500/10 px-4 py-3 text-sm leading-relaxed text-violet-100">
+    <div className="mt-4 rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-sm leading-relaxed text-white">
       {children}
     </div>
   );
@@ -79,7 +79,7 @@ function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
 
 function Signature({ children }: { children: string }) {
   return (
-    <pre className="mt-3 overflow-x-auto rounded-lg border border-cyan-400/20 bg-cyan-400/5 px-4 py-2.5 font-mono text-[13px] text-cyan-100">
+    <pre className="mt-3 overflow-x-auto rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 font-mono text-[13px] text-white">
       {children}
     </pre>
   );
@@ -187,7 +187,7 @@ export function DeveloperDocs() {
               </a>
             ))}
             <div className="mt-6 border-t border-white/5 pt-4">
-              <Link href="/developers/console" className="block rounded-lg px-3 py-1.5 font-medium text-cyan-300 hover:bg-white/5">
+              <Link href="/developers/console" className="block rounded-lg px-3 py-1.5 font-medium text-neutral-300 hover:bg-white/5">
                 Open the console →
               </Link>
             </div>
@@ -206,7 +206,7 @@ export function DeveloperDocs() {
             </nav>
           </details>
 
-          <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">Assentry developer documentation</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Assentry developer documentation</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Accept AI agents on your website</h1>
           <p className="mt-4 text-lg leading-relaxed text-slate-300">
             Assentry lets your site recognise an AI agent acting on behalf of a real, consenting person — and
@@ -264,14 +264,14 @@ export function DeveloperDocs() {
             <H2 id="quickstart">Quickstart</H2>
             <ol className="mt-4 list-decimal space-y-3 pl-5 text-slate-300">
               <li>
-                <Link href="/developers/signup" className="text-cyan-300 hover:text-cyan-200">
+                <Link href="/developers/signup" className="text-neutral-300 hover:text-neutral-200">
                   Create a developer account
                 </Link>
                 .
               </li>
               <li>
                 In the{" "}
-                <Link href="/developers/console" className="text-cyan-300 hover:text-cyan-200">
+                <Link href="/developers/console" className="text-neutral-300 hover:text-neutral-200">
                   console
                 </Link>
                 , create an app and copy its API key. It&apos;s shown once — store it as a secret on your server.
@@ -383,7 +383,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             <H3 id="sdk-discovery">assentryDiscovery(options)</H3>
             <Signature>{"assentryDiscovery({ partnerName: string }): RequestHandler"}</Signature>
             <P>
-              Mount once, before your routes. See <a href="#discovery" className="text-cyan-300 hover:text-cyan-200">Agent discovery</a>.
+              Mount once, before your routes. See <a href="#discovery" className="text-neutral-300 hover:text-neutral-200">Agent discovery</a>.
             </P>
 
             <H3 id="sdk-declare">declareDiscoverableRoute(route)</H3>
@@ -397,7 +397,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             <Signature>{"getAccountLinkUrl({ redirectUri: string, state?: string }): string"}</Signature>
             <Signature>{"exchangeLinkCode(code: string): Promise<{ userId: string }>"}</Signature>
             <P>
-              See <a href="#account-linking" className="text-cyan-300 hover:text-cyan-200">Account linking</a>.{" "}
+              See <a href="#account-linking" className="text-neutral-300 hover:text-neutral-200">Account linking</a>.{" "}
               <C>getAccountLinkUrl</C> throws if the client was created without <C>partnerId</C>.
             </P>
 

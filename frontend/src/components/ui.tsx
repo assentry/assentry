@@ -16,7 +16,7 @@ type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary:
-    "bg-gradient-to-br from-cyan-400 to-violet-500 text-navy-950 shadow-sm shadow-cyan-500/20 hover:shadow-md hover:shadow-cyan-500/30 hover:brightness-105 focus-visible:outline-cyan-400",
+    "bg-gradient-to-br from-white to-neutral-400 text-navy-950 shadow-sm shadow-black/40 hover:shadow-md hover:shadow-black/40 hover:brightness-105 focus-visible:outline-neutral-400",
   secondary:
     "border border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 focus-visible:outline-white/40",
   danger: "border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 focus-visible:outline-rose-400",
@@ -40,7 +40,7 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 ${props.className ?? ""}`}
+      className={`w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 ${props.className ?? ""}`}
     />
   );
 }
@@ -49,7 +49,7 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`w-full rounded-lg border border-white/15 bg-navy-900 px-3 py-2 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 ${props.className ?? ""}`}
+      className={`w-full rounded-lg border border-white/15 bg-navy-900 px-3 py-2 text-sm text-slate-100 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 ${props.className ?? ""}`}
     />
   );
 }
@@ -61,9 +61,9 @@ export function Label({ children }: { children: ReactNode }) {
 type BadgeTone = "success" | "danger" | "warning" | "neutral";
 
 const badgeTones: Record<BadgeTone, string> = {
-  success: "bg-cyan-400/10 text-cyan-300 ring-cyan-400/25",
+  success: "bg-white/10 text-neutral-300 ring-white/25",
   danger: "bg-rose-500/10 text-rose-300 ring-rose-400/25",
-  warning: "bg-amber-400/10 text-amber-300 ring-amber-400/25",
+  warning: "bg-white/10 text-neutral-300 ring-white/25",
   neutral: "bg-white/5 text-slate-400 ring-white/10",
 };
 
@@ -88,8 +88,8 @@ export function EmptyState({ children }: { children: ReactNode }) {
 type StatTone = "cyan" | "violet" | "slate";
 
 const statTones: Record<StatTone, { icon: string; ring: string }> = {
-  cyan: { icon: "bg-cyan-400/10 text-cyan-300", ring: "ring-cyan-400/20" },
-  violet: { icon: "bg-violet-400/10 text-violet-300", ring: "ring-violet-400/20" },
+  cyan: { icon: "bg-white/10 text-neutral-300", ring: "ring-white/20" },
+  violet: { icon: "bg-white/10 text-neutral-300", ring: "ring-white/20" },
   slate: { icon: "bg-white/5 text-slate-300", ring: "ring-white/10" },
 };
 
@@ -143,7 +143,7 @@ export function MultiSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full min-h-[38px] flex-wrap items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-left text-sm focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+        className="flex w-full min-h-[38px] flex-wrap items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-left text-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
       >
         {selected.length === 0 ? (
           <span className="text-slate-500">{placeholder}</span>
@@ -151,11 +151,11 @@ export function MultiSelect({
           selected.map((value) => (
             <span
               key={value}
-              className="inline-flex items-center gap-1 rounded-md bg-cyan-400/10 px-1.5 py-0.5 text-xs font-medium text-cyan-300"
+              className="inline-flex items-center gap-1 rounded-md bg-white/10 px-1.5 py-0.5 text-xs font-medium text-neutral-300"
             >
               {labelFor(value)}
               <X
-                className="h-3 w-3 cursor-pointer hover:text-cyan-100"
+                className="h-3 w-3 cursor-pointer hover:text-white"
                 onClick={(e) => {
                   e.stopPropagation();
                   remove(value);
@@ -179,7 +179,7 @@ export function MultiSelect({
                 className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-sm hover:bg-white/5"
               >
                 <span className="text-slate-300">{option.label}</span>
-                {checked && <Check className="h-4 w-4 text-cyan-400" />}
+                {checked && <Check className="h-4 w-4 text-neutral-300" />}
               </button>
             );
           })}
@@ -196,7 +196,7 @@ export function MultiSelect({
                   }
                 }}
                 placeholder="Custom field…"
-                className="w-full min-w-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-200 focus:border-cyan-400 focus:outline-none"
+                className="w-full min-w-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-200 focus:border-neutral-400 focus:outline-none"
               />
               <button
                 type="button"

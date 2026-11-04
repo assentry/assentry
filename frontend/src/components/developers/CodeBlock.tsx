@@ -25,7 +25,7 @@ export function CodeBlock({ code, label }: { code: string; label?: string }) {
         aria-label="Copy code"
         className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md border border-white/10 bg-navy-950/80 px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
       >
-        {copied ? <Check className="h-3.5 w-3.5 text-cyan-300" /> : <Copy className="h-3.5 w-3.5" />}
+        {copied ? <Check className="h-3.5 w-3.5 text-neutral-300" /> : <Copy className="h-3.5 w-3.5" />}
         {copied ? "Copied" : "Copy"}
       </button>
       <pre className="overflow-x-auto px-4 py-4 pr-20 text-[13px] leading-relaxed text-slate-200">

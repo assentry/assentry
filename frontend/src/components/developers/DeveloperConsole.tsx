@@ -78,7 +78,7 @@ export function DeveloperConsole() {
       <main className="relative mx-auto max-w-4xl px-6 py-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-violet-300">Developer console</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Developer console</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">Your apps & API keys</h1>
             <p className="mt-1 text-sm text-slate-400">Signed in as {developer.email}</p>
           </div>
@@ -141,12 +141,12 @@ function RevealedKeyNotice({ revealed, onDismiss }: { revealed: RevealedKey; onD
   }
 
   return (
-    <div className="mt-6 rounded-2xl border border-cyan-400/30 bg-cyan-400/5 p-5">
-      <p className="flex items-center gap-2 text-sm font-semibold text-cyan-200">
+    <div className="mt-6 rounded-2xl border border-white/30 bg-white/5 p-5">
+      <p className="flex items-center gap-2 text-sm font-semibold text-neutral-200">
         <KeyRound className="h-4 w-4" />
         {revealed.rotated ? `New API key for “${revealed.appName}”` : `API key for “${revealed.appName}”`}
       </p>
-      <p className="mt-1 flex items-start gap-1.5 text-sm text-amber-200">
+      <p className="mt-1 flex items-start gap-1.5 text-sm text-neutral-200">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         This is the only time this key will be shown. Store it somewhere safe (e.g. your server&apos;s
         ASSENTRY_API_KEY environment variable) before closing this.
@@ -322,13 +322,13 @@ function AppCard({
             }}
             rows={2}
             placeholder="https://yoursite.com/link/callback"
-            className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+            className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-slate-100 placeholder:text-slate-500 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
           />
           <div className="mt-2 flex items-center gap-3">
             <Button type="submit" variant="secondary" disabled={busy}>
               Save redirect URIs
             </Button>
-            {savedNote && <span className="text-xs text-cyan-300">{savedNote}</span>}
+            {savedNote && <span className="text-xs text-neutral-300">{savedNote}</span>}
             <Link href="/developers/docs#account-linking" className="text-xs text-slate-400 hover:text-white">
               What&apos;s this?
             </Link>

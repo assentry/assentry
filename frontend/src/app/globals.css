@@ -5,18 +5,18 @@
 
   /* Deep midnight navy — the brand's base surface, distinct from a plain
      neutral slate: it carries a deliberate blue tint even at its darkest. */
-  --color-navy-950: #040712;
-  --color-navy-900: #070b1e;
-  --color-navy-800: #0d1330;
-  --color-navy-700: #141b40;
-  --color-navy-600: #1c2554;
+  --color-navy-950: #000000;
+  --color-navy-900: #0a0a0a;
+  --color-navy-800: #171717;
+  --color-navy-700: #262626;
+  --color-navy-600: #404040;
 
   /* Electric cyan — the "authorised / active" signal color used throughout:
      trust-network connections, verified badges, active states. */
-  --color-cyan-glow: #22d3ee;
+  --color-cyan-glow: #e5e5e5;
 
   /* Subtle violet highlight — human-identity nodes, secondary accents. */
-  --color-violet-glow: #a78bfa;
+  --color-violet-glow: #a3a3a3;
 }
 
 @layer base {
@@ -41,7 +41,7 @@
   }
 
   .text-glow-cyan {
-    text-shadow: 0 0 24px rgb(34 211 238 / 0.35);
+    text-shadow: 0 0 24px rgb(255 255 255 / 0.18);
   }
 
   .animate-fade-in {

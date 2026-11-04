@@ -33,7 +33,7 @@ export function Nav() {
           </Link>
           <Link
             href="/signup"
-            className="rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 px-5 py-2 text-sm font-semibold text-navy-950 shadow-lg shadow-cyan-500/20 transition-transform hover:scale-105"
+            className="rounded-full bg-gradient-to-br from-white to-neutral-400 px-5 py-2 text-sm font-semibold text-navy-950 shadow-lg shadow-black/40 transition-transform hover:scale-105"
           >
             Get Early Access
           </Link>
@@ -66,7 +66,7 @@ export function Nav() {
             </Link>
             <Link
               href="/signup"
-              className="rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 px-4 py-1.5 text-sm font-semibold text-navy-950"
+              className="rounded-full bg-gradient-to-br from-white to-neutral-400 px-4 py-1.5 text-sm font-semibold text-navy-950"
             >
               Get Early Access
             </Link>

@@ -37,16 +37,16 @@ export function DeveloperAuthForm({ mode }: { mode: "login" | "signup" }) {
   return (
     <div className="relative min-h-screen overflow-hidden bg-navy-950">
       <div className="grid-texture pointer-events-none absolute -inset-20 opacity-40" />
-      <div className="pointer-events-none absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/15 blur-3xl" />
       <DevHeader />
 
       <div className="relative flex justify-center px-4 py-16">
         <div className="w-full max-w-sm">
-          <div className="glass rounded-2xl border-violet-400/20 p-7 shadow-2xl shadow-black/40">
-            <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400/20 to-violet-500/30 text-violet-200">
+          <div className="glass rounded-2xl border-white/20 p-7 shadow-2xl shadow-black/40">
+            <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-white/20 to-neutral-500/30 text-neutral-200">
               <Code2 className="h-5 w-5" />
             </div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-violet-300">Developer console</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Developer console</p>
             <h1 className="mt-1 text-xl font-semibold tracking-tight text-white">
               {mode === "login" ? "Log in to your developer account" : "Create a developer account"}
             </h1>
@@ -96,14 +96,14 @@ export function DeveloperAuthForm({ mode }: { mode: "login" | "signup" }) {
               {mode === "login" ? (
                 <>
                   New to Assentry?{" "}
-                  <Link href="/developers/signup" className="font-medium text-cyan-300 hover:text-cyan-200">
+                  <Link href="/developers/signup" className="font-medium text-neutral-300 hover:text-neutral-200">
                     Create a developer account
                   </Link>
                 </>
               ) : (
                 <>
                   Already have one?{" "}
-                  <Link href="/developers/login" className="font-medium text-cyan-300 hover:text-cyan-200">
+                  <Link href="/developers/login" className="font-medium text-neutral-300 hover:text-neutral-200">
                     Log in
                   </Link>
                 </>

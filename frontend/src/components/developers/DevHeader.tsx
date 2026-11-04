@@ -25,7 +25,7 @@ export function DevHeader() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <div className="flex items-center gap-3">
           <Logo />
-          <span className="hidden rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-cyan-200 sm:inline-block">
+          <span className="hidden rounded-full border border-white/30 bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-200 sm:inline-block">
             Developers
           </span>
         </div>
