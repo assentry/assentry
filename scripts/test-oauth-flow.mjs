@@ -156,13 +156,11 @@ async function main() {
   const credResult = await client.callTool({ name: "get_credential", arguments: { grantId } });
   const { credential } = JSON.parse(credResult.content[0].text);
 
-  console.log("\n== 9. present that credential to the real demo job board ==");
-  const applyRes = await fetch("http://localhost:4100/apply", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${credential}` },
-    body: "{}",
+  console.log("\n== 9. present that credential to the real demo site ==");
+  const dashboardRes = await fetch("http://localhost:4100/dashboard", {
+    headers: { Authorization: `Bearer ${credential}` },
   });
-  console.log(await applyRes.json());
+  console.log(dashboardRes.status, (await dashboardRes.text()).slice(0, 200));
 
   await client.close();
 }

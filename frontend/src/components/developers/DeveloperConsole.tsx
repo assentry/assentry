@@ -202,7 +202,7 @@ function CreateAppCard({ onCreated }: { onCreated: (app: DeveloperApp, apiKey: s
       <form onSubmit={create} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
           <Label>App name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Jobs (production)" required />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme (production)" required />
         </div>
         <Button type="submit" disabled={busy}>
           <Plus className="h-4 w-4" /> {busy ? "Creating…" : "Create app"}

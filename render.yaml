@@ -33,11 +33,11 @@ services:
         sync: false
 
   - type: web
-    name: assentry-demo-job-board
+    name: assentry-demo-site
     runtime: node
     plan: free
-    buildCommand: cd examples/demo-job-board && npm install --include=dev && npm run build
-    startCommand: node examples/demo-job-board/dist/index.js
+    buildCommand: cd examples/demo-site && npm install --include=dev && npm run build
+    startCommand: node examples/demo-site/dist/index.js
     envVars:
       # Set these three after assentry-backend's first deploy: ASSENTRY_BASE_URL is
       # its public Render URL, ASSENTRY_API_KEY and ASSENTRY_PARTNER_PUBLIC_ID come

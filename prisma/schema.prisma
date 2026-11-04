@@ -31,7 +31,7 @@ model Agent {
   userId    String
   user      User      @relation(fields: [userId], references: [id])
   platform  String // "claude" | "chatgpt" | "grok" | "other"
-  label     String? // user-facing name, e.g. "My Claude job-search assistant"
+  label     String? // user-facing name, e.g. "My Claude assistant"
   createdAt DateTime  @default(now())
   revokedAt DateTime?
 
@@ -124,7 +124,7 @@ model Partner {
   createdAt    DateTime @default(now())
 
   // Owning developer. Nullable: partners created before developer accounts
-  // existed (e.g. the demo job board) have no owner and can't be managed
+  // existed (e.g. the demo site) have no owner and can't be managed
   // from the console.
   developerId String?
   developer   Developer? @relation(fields: [developerId], references: [id])

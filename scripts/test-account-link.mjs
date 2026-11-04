@@ -1,14 +1,14 @@
 // Drives case 2 end-to-end exactly as a real browser would: the partner
-// site (demo-job-board) sends an "already logged in" user to Assentry, the user
+// site (demo-site) sends an "already logged in" user to Assentry, the user
 // logs into Assentry and confirms, Assentry redirects back with a code, and the
 // partner's own backend exchanges that code (server-to-server, with its own
 // API key) for the Assentry userId to store against its existing account.
-const JOB_BOARD = "http://localhost:4100";
+const DEMO_SITE = "http://localhost:4100";
 const DEMO_ACCOUNT_ID = "acme-user-1";
 
 async function main() {
   console.log("== 1. partner site sends its logged-in user to Assentry ==");
-  const start = await fetch(`${JOB_BOARD}/link/start?accountId=${DEMO_ACCOUNT_ID}`, { redirect: "manual" });
+  const start = await fetch(`${DEMO_SITE}/link/start?accountId=${DEMO_ACCOUNT_ID}`, { redirect: "manual" });
   const authorizeUrl = start.headers.get("location");
   if (!authorizeUrl) throw new Error("expected a redirect to Assentry's /link/authorize");
   console.log("redirected to:", authorizeUrl);
@@ -69,7 +69,7 @@ async function main() {
   console.log(await callbackRes.text());
 
   console.log("\n== 7. confirm the link actually stuck ==");
-  const status = await fetch(`${JOB_BOARD}/link/status?accountId=${DEMO_ACCOUNT_ID}`).then((r) => r.json());
+  const status = await fetch(`${DEMO_SITE}/link/status?accountId=${DEMO_ACCOUNT_ID}`).then((r) => r.json());
   console.log(status);
 
   console.log("\n== 8. a stale/reused code must fail ==");

@@ -24,7 +24,7 @@ app.use(cookieParser());
 // human login wall with no way through. See @assentry/sdk's README for what
 // this adds to every response. No routes list to pass in here — each
 // protected route declares itself where it's actually defined, below.
-app.use(assentryDiscovery({ partnerName: "Demo Job Board" }));
+app.use(assentryDiscovery({ partnerName: "Demo Site" }));
 
 // Stands in for this site's own user database. Keyed by the site's own
 // account id, holding whatever Assentry userId has been linked to it (case 2 —
@@ -61,7 +61,7 @@ function matchOrCreateAccount(email: string | undefined, assentryUserId: string)
 
 function authPage(opts: { title: string; action: string; cta: string; footer: string; error?: string }): string {
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>Demo Job Board — ${opts.title}</title>
+<html><head><meta charset="utf-8"><title>Demo Site — ${opts.title}</title>
 <style>body{font-family:-apple-system,system-ui,sans-serif;max-width:360px;margin:80px auto;padding:0 16px}
 input{width:100%;padding:8px;margin-top:4px;box-sizing:border-box}
 label{display:block;margin-top:12px;font-size:0.85rem;color:#475569}
@@ -69,7 +69,7 @@ button{margin-top:16px;padding:8px 16px}
 .error{color:#dc2626;font-size:0.85rem;margin-top:8px}
 .footer{margin-top:16px;font-size:0.85rem}</style></head>
 <body>
-  <h2>Demo Job Board</h2>
+  <h2>Demo Site</h2>
   <p>${opts.title === "log in" ? "Sign in to your account." : "Create an account."}</p>
   <form method="post" action="${opts.action}">
     <label>Email</label>
@@ -250,5 +250,5 @@ app.get("/link/status", (req, res) => {
 
 const port = Number(process.env.PORT) || 4100;
 app.listen(port, () => {
-  console.log(`Demo job board listening on http://localhost:${port}`);
+  console.log(`Demo site listening on http://localhost:${port}`);
 });

@@ -4,7 +4,7 @@ import { hashApiKey } from "../src/lib/partnerAuth";
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
-  const name = process.argv[2] ?? "Demo Job Board";
+  const name = process.argv[2] ?? "Demo Site";
   const apiKey = `assentry_${crypto.randomBytes(24).toString("hex")}`;
 
   const linkRedirectUri = process.argv[3] ?? "http://localhost:4100/link/callback";

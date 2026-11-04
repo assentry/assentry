@@ -106,7 +106,7 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
             .join("")}
         </select>
         <label>Label (optional)</label>
-        <input name="label" placeholder="e.g. My job-search assistant">
+        <input name="label" placeholder="e.g. My personal assistant">
         <button class="approve" type="submit" name="decision" value="approve">Connect</button>
         <button class="deny" type="submit" name="decision" value="deny">Cancel</button>
       </form>`

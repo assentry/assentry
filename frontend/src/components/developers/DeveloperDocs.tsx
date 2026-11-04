@@ -97,7 +97,7 @@ const app = express();
 app.use(express.json());
 
 // Makes your whole site discoverable to agents (see "Agent discovery").
-app.use(assentryDiscovery({ partnerName: "Acme Jobs" }));
+app.use(assentryDiscovery({ partnerName: "Acme" }));
 
 app.get(
   "/account",
@@ -136,7 +136,7 @@ app.get("/dashboard", async (req, res) => {
 
 const DISCOVERY_DOC = `{
   "assentry_version": "1",
-  "partner": "Acme Jobs",
+  "partner": "Acme",
   "description": "This site accepts AI agents acting on a person's behalf, authorised and verified through Assentry (...).",
   "credential": {
     "header": "Authorization",

@@ -5,7 +5,7 @@ flowchart TB
     User(["Person"])
     App["Personal App (React)"]
     Agent["AI Agent (Claude / ChatGPT)"]
-    Partner["Partner Website<br/>e.g. Demo Job Board"]
+    Partner["Partner Website<br/>e.g. Demo Site"]
     DB[("Postgres")]
 
     subgraph Assentry["Assentry Backend (Render)"]
