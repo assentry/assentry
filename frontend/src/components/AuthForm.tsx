@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api, ApiError, setToken } from "../lib/api";
@@ -42,9 +41,7 @@ export function AuthForm({ initialMode }: { initialMode: "login" | "signup" }) {
 
       <div className="relative w-full max-w-sm">
         <div className="mb-6 flex justify-center">
-          <Link href="/">
-            <Logo />
-          </Link>
+          <Logo />
         </div>
 
         <div className="glass rounded-2xl p-7 shadow-2xl shadow-black/40">
