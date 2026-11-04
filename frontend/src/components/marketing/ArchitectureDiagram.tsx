@@ -78,8 +78,19 @@ const MOBILE: Layout = {
   subSize: 10,
 };
 
-const CYAN = "#22d3ee";
-const VIOLET = "#a78bfa";
+// One colour per step, so every part of the flow keeps its own highlight
+// once its step has played.
+const STEP_COLORS = [
+  "#22d3ee", // cyan
+  "#38bdf8", // sky
+  "#2dd4bf", // teal
+  "#818cf8", // indigo
+  "#a78bfa", // violet
+  "#e879f9", // fuchsia
+  "#f472b6", // pink
+  "#fbbf24", // amber
+  "#34d399", // emerald
+];
 
 interface Step {
   from: NodeId;
@@ -98,14 +109,14 @@ const STEPS: Step[] = [
   {
     from: "person",
     to: "app",
-    color: CYAN,
+    color: STEP_COLORS[0],
     title: "A person signs in",
     detail: "They create their HAPI identity in the personal app.",
   },
   {
     from: "agent",
     to: "oauth",
-    color: CYAN,
+    color: STEP_COLORS[1],
     title: "Their AI agent connects",
     detail:
       "The agent connects through HAPI's OAuth 2.1 flow. The person approves it on a HAPI screen. No keys or secrets are ever copied by hand.",
@@ -114,7 +125,7 @@ const STEPS: Step[] = [
     from: "app",
     to: "grants",
     axis: { d: "h" },
-    color: CYAN,
+    color: STEP_COLORS[2],
     title: "The person grants permission",
     detail:
       "They choose which agent, which personal fields it may share, and for how long. Connecting an agent grants nothing on its own.",
@@ -123,7 +134,7 @@ const STEPS: Step[] = [
     from: "mcp",
     to: "agent",
     offset: 14,
-    color: CYAN,
+    color: STEP_COLORS[3],
     title: "The agent fetches a credential",
     detail:
       "Right before acting, the agent asks HAPI's MCP server for a fresh, short-lived signed credential. It holds IDs and an expiry, never personal data.",
@@ -131,7 +142,7 @@ const STEPS: Step[] = [
   {
     from: "agent",
     to: "website",
-    color: CYAN,
+    color: STEP_COLORS[4],
     title: "The agent presents it",
     detail:
       "It sends the credential to the website as a standard Authorization: Bearer header. No password, no form filling.",
@@ -139,7 +150,7 @@ const STEPS: Step[] = [
   {
     from: "website",
     to: "verify",
-    color: CYAN,
+    color: STEP_COLORS[5],
     title: "The website checks with HAPI",
     detail:
       "The website's SDK calls /verify. HAPI re-checks the grant live: not revoked, not expired, agent still connected.",
@@ -148,7 +159,7 @@ const STEPS: Step[] = [
     from: "verify",
     to: "website",
     offset: 14,
-    color: CYAN,
+    color: STEP_COLORS[6],
     title: "HAPI answers",
     detail:
       "Valid or not, plus (via /profile) only the fields the person consented to share. What happens next is the website's own decision.",
@@ -156,14 +167,14 @@ const STEPS: Step[] = [
   {
     from: "verify",
     to: "audit",
-    color: VIOLET,
+    color: STEP_COLORS[7],
     title: "Everything is recorded",
     detail: "Every verification and every disclosure is written to the audit log.",
   },
   {
     from: "audit",
     to: "app",
-    color: VIOLET,
+    color: STEP_COLORS[8],
     title: "The person stays in control",
     detail:
       "They see every action in their personal app, and can revoke the agent or the grant at any time. It stops working immediately.",
@@ -242,6 +253,12 @@ function Diagram({
 }) {
   const active = STEPS[step];
   const activeNodes = new Set<NodeId>([active.from, active.to]);
+  // A box keeps the colour of the most recent step that reached it.
+  const nodeColor: Partial<Record<NodeId, string>> = {};
+  STEPS.slice(0, step + 1).forEach((s) => {
+    nodeColor[s.from] = s.color;
+    nodeColor[s.to] = s.color;
+  });
   const glow = `glow-${layout.key}`;
   const paths = STEPS.map((s) =>
     edgePath(layout.nodes[s.from], layout.nodes[s.to], s.offset, s.axis?.[layout.key as "d" | "m"]),
@@ -263,8 +280,7 @@ function Diagram({
           </feMerge>
         </filter>
         {[
-          { id: `arrow-cyan-${layout.key}`, color: CYAN },
-          { id: `arrow-violet-${layout.key}`, color: VIOLET },
+          ...STEPS.map((s, i) => ({ id: `arrow-${i}-${layout.key}`, color: s.color })),
           { id: `arrow-dim-${layout.key}`, color: "rgba(148,163,184,0.35)" },
         ].map((m) => (
           <marker key={m.id} id={m.id} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -298,17 +314,17 @@ function Diagram({
       {/* Connections */}
       {STEPS.map((s, i) => {
         const isActive = i === step;
-        const markerColor = s.color === VIOLET ? "violet" : "cyan";
+        const isLit = i <= step;
         return (
           <path
             key={i}
             d={paths[i]}
             fill="none"
-            stroke={isActive ? s.color : "rgba(148,163,184,0.22)"}
-            strokeWidth={isActive ? 2.2 : 1.2}
-            strokeDasharray={isActive ? undefined : "4 6"}
+            stroke={isLit ? s.color : "rgba(148,163,184,0.22)"}
+            strokeWidth={isLit ? 2.2 : 1.2}
+            strokeDasharray={isLit ? undefined : "4 6"}
             className={isActive && !reduced ? "animate-dash" : undefined}
-            markerEnd={`url(#arrow-${isActive ? markerColor : "dim"}-${layout.key})`}
+            markerEnd={`url(#arrow-${isLit ? i : "dim"}-${layout.key})`}
           />
         );
       })}
@@ -318,6 +334,7 @@ function Diagram({
         const r = layout.nodes[id];
         const c = center(r);
         const isActive = activeNodes.has(id);
+        const color = nodeColor[id];
         const inside = INSIDE.includes(id);
         return (
           <g key={id}>
@@ -328,8 +345,8 @@ function Diagram({
               height={r.h}
               rx={14}
               fill={inside ? "#0a1430" : "#0b1226"}
-              stroke={isActive ? active.color : "rgba(255,255,255,0.12)"}
-              strokeWidth={isActive ? 2 : 1}
+              stroke={color ?? "rgba(255,255,255,0.12)"}
+              strokeWidth={color ? 2 : 1}
               filter={isActive ? `url(#${glow})` : undefined}
               style={{ transition: "stroke 300ms ease" }}
             />
@@ -337,7 +354,7 @@ function Diagram({
               x={c.x}
               y={c.y - 3}
               textAnchor="middle"
-              fill={isActive ? "#ffffff" : "#e2e8f0"}
+              fill={color ? "#ffffff" : "#e2e8f0"}
               fontSize={layout.titleSize}
               fontWeight={600}
             >
@@ -410,9 +427,8 @@ export function ArchitectureDiagram() {
                   }}
                   aria-label={`Step ${i + 1}: ${s.title}`}
                   aria-current={i === step ? "step" : undefined}
-                  className={`h-2 flex-1 rounded-full transition-colors ${
-                    i === step ? "bg-cyan-300" : i < step ? "bg-cyan-300/35" : "bg-white/10 hover:bg-white/20"
-                  }`}
+                  className={`h-2 flex-1 rounded-full transition-colors ${i <= step ? "" : "bg-white/10 hover:bg-white/20"}`}
+                  style={i <= step ? { backgroundColor: s.color, opacity: i === step ? 1 : 0.7 } : undefined}
                 />
               ))}
             </div>
