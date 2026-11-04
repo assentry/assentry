@@ -47,7 +47,7 @@ const DESKTOP: Layout = {
     person: { x: 30, y: 70, w: 190, h: 66 },
     app: { x: 30, y: 300, w: 190, h: 66 },
     agent: { x: 780, y: 70, w: 190, h: 66 },
-    website: { x: 780, y: 300, w: 190, h: 66 },
+    website: { x: 780, y: 307, w: 190, h: 66 },
     grants: { x: 350, y: 70, w: 300, h: 60 },
     oauth: { x: 350, y: 150, w: 300, h: 60 },
     mcp: { x: 350, y: 230, w: 300, h: 60 },
@@ -82,14 +82,17 @@ const MOBILE: Layout = {
 // once its step has played.
 const STEP_COLORS = [
   "#22d3ee", // cyan
-  "#38bdf8", // sky
-  "#2dd4bf", // teal
-  "#818cf8", // indigo
-  "#a78bfa", // violet
-  "#e879f9", // fuchsia
-  "#f472b6", // pink
   "#fbbf24", // amber
   "#34d399", // emerald
+  "#f472b6", // pink
+  "#60a5fa", // blue
+  "#fb923c", // orange
+  "#a78bfa", // violet
+  "#a3e635", // lime
+  "#fb7185", // rose
+  "#2dd4bf", // teal
+  "#e879f9", // fuchsia
+  "#818cf8", // indigo
 ];
 
 interface Step {
@@ -99,6 +102,9 @@ interface Step {
   // Force a horizontal or vertical route in a given layout where the
   // automatic nearest-side choice would cut through another box.
   axis?: Partial<Record<"d" | "m", "h" | "v">>;
+  // Route down the left or right edge of the stacked HAPI boxes, for hops
+  // that skip over a box in between.
+  side?: "left" | "right";
   color: string;
   title: string;
   detail: string;
@@ -131,18 +137,35 @@ const STEPS: Step[] = [
       "They choose which agent, which personal fields it may share, and for how long. Connecting an agent grants nothing on its own.",
   },
   {
+    from: "oauth",
+    to: "mcp",
+    color: STEP_COLORS[3],
+    title: "The connection unlocks the MCP server",
+    detail:
+      "The token the agent received when it connected is the only thing that lets it talk to HAPI's MCP server.",
+  },
+  {
+    from: "grants",
+    to: "mcp",
+    side: "left",
+    color: STEP_COLORS[4],
+    title: "The MCP server checks the grant",
+    detail:
+      "When the agent asks for a credential, the MCP server looks up that agent's grants and only proceeds for one that's still active.",
+  },
+  {
     from: "mcp",
     to: "agent",
     offset: 14,
-    color: STEP_COLORS[3],
-    title: "The agent fetches a credential",
+    color: STEP_COLORS[5],
+    title: "The agent receives a credential",
     detail:
-      "Right before acting, the agent asks HAPI's MCP server for a fresh, short-lived signed credential. It holds IDs and an expiry, never personal data.",
+      "A fresh, short-lived signed credential, fetched right before acting. It holds IDs and an expiry, never personal data.",
   },
   {
     from: "agent",
     to: "website",
-    color: STEP_COLORS[4],
+    color: STEP_COLORS[6],
     title: "The agent presents it",
     detail:
       "It sends the credential to the website as a standard Authorization: Bearer header. No password, no form filling.",
@@ -150,31 +173,40 @@ const STEPS: Step[] = [
   {
     from: "website",
     to: "verify",
-    color: STEP_COLORS[5],
+    offset: -9,
+    color: STEP_COLORS[7],
     title: "The website checks with HAPI",
+    detail: "The website's SDK calls /verify, and /profile for any personal fields it needs.",
+  },
+  {
+    from: "grants",
+    to: "verify",
+    side: "right",
+    color: STEP_COLORS[8],
+    title: "HAPI re-checks the grant live",
     detail:
-      "The website's SDK calls /verify. HAPI re-checks the grant live: not revoked, not expired, agent still connected.",
+      "/verify re-reads the grant: not revoked, not expired, agent still connected. /profile reads which fields that grant allows to be shared.",
   },
   {
     from: "verify",
     to: "website",
-    offset: 14,
-    color: STEP_COLORS[6],
+    offset: 9,
+    color: STEP_COLORS[9],
     title: "HAPI answers",
     detail:
-      "Valid or not, plus (via /profile) only the fields the person consented to share. What happens next is the website's own decision.",
+      "Valid or not, plus only the fields the person consented to share. What happens next is the website's own decision.",
   },
   {
     from: "verify",
     to: "audit",
-    color: STEP_COLORS[7],
+    color: STEP_COLORS[10],
     title: "Everything is recorded",
     detail: "Every verification and every disclosure is written to the audit log.",
   },
   {
     from: "audit",
     to: "app",
-    color: STEP_COLORS[8],
+    color: STEP_COLORS[11],
     title: "The person stays in control",
     detail:
       "They see every action in their personal app, and can revoke the agent or the grant at any time. It stops working immediately.",
@@ -189,6 +221,18 @@ function center(r: Rect) {
 
 // Connects the nearest sides of two boxes with a smooth curve. `offset`
 // shifts both ends sideways so a reply can run alongside its request.
+// Curves out past one edge of two vertically stacked boxes and back in,
+// so the line doesn't cut through the boxes between them.
+function sidePath(a: Rect, b: Rect, side: "left" | "right", bulge: number): string {
+  const x1 = side === "left" ? a.x : a.x + a.w;
+  const x2 = side === "left" ? b.x : b.x + b.w;
+  const y1 = a.y + a.h / 2;
+  const y2 = b.y + b.h / 2;
+  const cx1 = side === "left" ? x1 - bulge : x1 + bulge;
+  const cx2 = side === "left" ? x2 - bulge : x2 + bulge;
+  return `M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`;
+}
+
 function edgePath(a: Rect, b: Rect, offset = 0, axis?: "h" | "v"): string {
   const ac = center(a);
   const bc = center(b);
@@ -261,7 +305,9 @@ function Diagram({
   });
   const glow = `glow-${layout.key}`;
   const paths = STEPS.map((s) =>
-    edgePath(layout.nodes[s.from], layout.nodes[s.to], s.offset, s.axis?.[layout.key as "d" | "m"]),
+    s.side
+      ? sidePath(layout.nodes[s.from], layout.nodes[s.to], s.side, layout.key === "d" ? 34 : 22)
+      : edgePath(layout.nodes[s.from], layout.nodes[s.to], s.offset, s.axis?.[layout.key as "d" | "m"]),
   );
 
   return (
