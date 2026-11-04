@@ -14,15 +14,6 @@ export function Hero() {
       <div className="animate-breathe pointer-events-none absolute right-0 top-96 h-80 w-80 rounded-full bg-violet-500/10 blur-[100px]" style={{ animationDelay: "-2.5s" }} />
 
       <div className="relative mx-auto max-w-5xl px-6 text-center">
-        <motion.p
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="glass mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium tracking-wide text-cyan-200"
-        >
-          The trust layer connecting people, AI agents and the internet
-        </motion.p>
-
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
