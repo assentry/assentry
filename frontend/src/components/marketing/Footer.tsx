@@ -7,9 +7,6 @@ export function Footer() {
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row">
         <Logo />
         <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
-          <a href="#platform" className="hover:text-white">
-            Platform
-          </a>
           <a href="#how-it-works" className="hover:text-white">
             How It Works
           </a>
@@ -19,9 +16,6 @@ export function Footer() {
           <a href="/developers" className="hover:text-white">
             Developers
           </a>
-          <Link href="/developers/docs" className="hover:text-white">
-            Developer docs
-          </Link>
         </nav>
         <Link href="/signup" className="text-sm font-medium text-cyan-300 hover:text-cyan-200">
           Get Early Access →

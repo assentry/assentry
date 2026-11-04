@@ -6,11 +6,9 @@ import { useState } from "react";
 import { Logo } from "../Logo";
 
 const LINKS = [
-  { href: "#platform", label: "Platform" },
   { href: "#how-it-works", label: "How It Works" },
   { href: "/signup", label: "End Users" },
   { href: "/developers", label: "Developers" },
-  { href: "/developers/docs", label: "Docs" },
 ];
 
 export function Nav() {
