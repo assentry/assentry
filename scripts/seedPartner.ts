@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import "dotenv/config";
-import { hashApiKey } from "../src/lib/partnerAuth";
+import { hashPartnerKey } from "../src/lib/partnerAuth";
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
@@ -12,7 +12,7 @@ async function main() {
   const partner = await prisma.partner.create({
     data: {
       name,
-      apiKeyHash: hashApiKey(apiKey),
+      apiKeyHash: hashPartnerKey(apiKey),
       apiKeyPreview: `${apiKey.slice(0, 12)}…`,
       linkRedirectUris: [linkRedirectUri],
     },

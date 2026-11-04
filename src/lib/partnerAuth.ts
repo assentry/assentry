@@ -6,7 +6,7 @@ export interface PartnerRequest extends Request {
   partner?: { id: string };
 }
 
-export const hashApiKey = hashSecret;
+export const hashPartnerKey = hashSecret;
 
 export async function requirePartner(
   req: PartnerRequest,
@@ -18,7 +18,7 @@ export async function requirePartner(
     return res.status(401).json({ error: "missing x-assentry-api-key header" });
   }
   const partner = await prisma.partner.findUnique({
-    where: { apiKeyHash: hashApiKey(apiKey) },
+    where: { apiKeyHash: hashPartnerKey(apiKey) },
   });
   // A revoked key gets exactly the same response as an unknown one.
   if (!partner || partner.revokedAt) {
