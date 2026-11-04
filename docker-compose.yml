@@ -2,13 +2,13 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: hapi
-      POSTGRES_PASSWORD: hapi
-      POSTGRES_DB: hapi
+      POSTGRES_USER: assentry
+      POSTGRES_PASSWORD: assentry
+      POSTGRES_DB: assentry
     ports:
       - "55432:5432"
     volumes:
-      - hapi_pg_data:/var/lib/postgresql/data
+      - assentry_pg_data:/var/lib/postgresql/data
 
 volumes:
-  hapi_pg_data:
+  assentry_pg_data:
