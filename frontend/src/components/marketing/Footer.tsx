@@ -7,7 +7,7 @@ export function Footer() {
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row">
         <Logo />
         <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
-          <a href="#how-it-works" className="hover:text-white">
+          <a href="/how-it-works" className="hover:text-white">
             How It Works
           </a>
           <a href="/signup" className="hover:text-white">
