@@ -374,9 +374,6 @@ export function ArchitectureDiagram() {
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">How HAPI works</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-slate-400">
-            Follow one request from a person&apos;s consent to a website&apos;s decision, and back.
-          </p>
         </div>
 
         <div className="glass rounded-3xl p-3 sm:p-6">

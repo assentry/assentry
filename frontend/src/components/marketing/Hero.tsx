@@ -36,16 +36,6 @@ export function Hero() {
           </span>
         </motion.h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mx-auto mt-7 max-w-2xl text-lg text-slate-300"
-        >
-          HAPI connects people, AI agents and websites through a trusted identity and authorisation
-          layer — making it possible for AI to act on your behalf while you remain in control.
-        </motion.p>
-
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
