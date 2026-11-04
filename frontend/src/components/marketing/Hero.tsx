@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Link from "next/link";
 
 export function Hero() {
   return (
@@ -26,26 +25,6 @@ export function Hero() {
             Your Control.
           </span>
         </motion.h1>
-
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row"
-        >
-          <Link
-            href="/developers"
-            className="rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 px-6 py-2.5 text-sm font-semibold text-navy-950 shadow-lg shadow-cyan-500/25 transition-transform hover:scale-105"
-          >
-            For Developers
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-full border border-white/15 px-6 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/5"
-          >
-            For End Users
-          </Link>
-        </motion.div>
       </div>
     </section>
   );

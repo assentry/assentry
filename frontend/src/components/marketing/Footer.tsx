@@ -14,10 +14,10 @@ export function Footer() {
             How It Works
           </a>
           <a href="/signup" className="hover:text-white">
-            For People
+            End Users
           </a>
           <a href="/developers" className="hover:text-white">
-            For Developers
+            Developers
           </a>
           <Link href="/developers/docs" className="hover:text-white">
             Developer docs
