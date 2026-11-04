@@ -2,12 +2,14 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { HeroVisual } from "./HeroVisual";
 
 export function Hero() {
   return (
-    <section id="platform" className="relative overflow-hidden pt-20 pb-10 sm:pt-28">
-      <div className="grid-texture pointer-events-none absolute inset-0 opacity-60" />
+    <section id="platform" className="relative overflow-hidden pt-20 pb-16 sm:pt-28 sm:pb-20">
+      <div
+        className="grid-texture pointer-events-none absolute inset-0 opacity-60"
+        style={{ maskImage: "linear-gradient(to bottom, black 55%, transparent)", WebkitMaskImage: "linear-gradient(to bottom, black 55%, transparent)" }}
+      />
       <div className="animate-breathe pointer-events-none absolute left-1/2 top-24 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
       <div className="animate-breathe pointer-events-none absolute right-0 top-96 h-80 w-80 rounded-full bg-violet-500/10 blur-[100px]" style={{ animationDelay: "-2.5s" }} />
 
@@ -62,15 +64,6 @@ export function Hero() {
           >
             For End Users
           </Link>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="mt-4"
-        >
-          <HeroVisual />
         </motion.div>
       </div>
     </section>

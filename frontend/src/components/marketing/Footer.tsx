@@ -13,14 +13,11 @@ export function Footer() {
           <a href="#how-it-works" className="hover:text-white">
             How It Works
           </a>
-          <a href="#for-people" className="hover:text-white">
+          <a href="/signup" className="hover:text-white">
             For People
           </a>
           <a href="/developers" className="hover:text-white">
             For Developers
-          </a>
-          <a href="#our-vision" className="hover:text-white">
-            Our Vision
           </a>
           <Link href="/developers/docs" className="hover:text-white">
             Developer docs
