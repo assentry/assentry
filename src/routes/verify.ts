@@ -12,7 +12,7 @@ const verifySchema = z.object({
 });
 
 // This is the handshake described to design partners: a direct exchange
-// between the partner's SDK and HAPI's authorisation service. The agent
+// between the partner's SDK and Assentry's authorisation service. The agent
 // never injects credentials into a form — it only carries this token here.
 verifyRouter.post("/", async (req: PartnerRequest, res) => {
   const parsed = verifySchema.safeParse(req.body);

@@ -7,7 +7,7 @@ import { PartnerRequest, requirePartner } from "../lib/partnerAuth";
 import { prisma } from "../lib/prisma";
 
 // Case 2 from STRATEGY.md's "what 'the agent logs in' actually means": a
-// one-time, human-driven confirmation that a HAPI user is the same person
+// one-time, human-driven confirmation that an Assentry user is the same person
 // as an existing account on a participating site. Unlike the agent
 // connector's public-client PKCE flow, the partner is a confidential
 // client — it already holds an API key for server-to-server use, so the
@@ -35,7 +35,7 @@ const authorizeQuerySchema = z.object({
 });
 
 // Entry point a participating site sends an *already-logged-in* human to,
-// to confirm their HAPI identity matches their existing account there.
+// to confirm their Assentry identity matches their existing account there.
 linkRouter.get("/authorize", async (req, res) => {
   const parsed = authorizeQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -45,7 +45,7 @@ linkRouter.get("/authorize", async (req, res) => {
 
   const partner = await resolvePartnerForLink(partner_id, redirect_uri);
   if (!partner) {
-    return res.status(400).send(page("Unknown app", "<p>This app isn't registered with HAPI, or its redirect address doesn't match.</p>"));
+    return res.status(400).send(page("Unknown app", "<p>This app isn't registered with Assentry, or its redirect address doesn't match.</p>"));
   }
 
   const hidden = hiddenLinkFields({ partner_id, redirect_uri, state });
@@ -54,7 +54,7 @@ linkRouter.get("/authorize", async (req, res) => {
   if (!sessionUserId) {
     return res.send(
       page(
-        "Log in to HAPI",
+        "Log in to Assentry",
         `<p class="hint">${escapeHtml(partner.name)} wants to confirm this is you.</p>
         <form method="post" action="/link/login">
           ${hidden}
@@ -69,7 +69,7 @@ linkRouter.get("/authorize", async (req, res) => {
   res.send(
     page(
       "Confirm your identity",
-      `<p class="hint"><strong>${escapeHtml(partner.name)}</strong> wants to confirm that your account there belongs to you. This doesn't grant any new permission — it just links your existing account to your HAPI identity.</p>
+      `<p class="hint"><strong>${escapeHtml(partner.name)}</strong> wants to confirm that your account there belongs to you. This doesn't grant any new permission — it just links your existing account to your Assentry identity.</p>
       <form method="post" action="/link/authorize">
         ${hidden}
         <button class="approve" type="submit" name="decision" value="approve">Confirm</button>
@@ -100,7 +100,7 @@ linkRouter.post("/login", async (req, res) => {
       .status(401)
       .send(
         page(
-          "Log in to HAPI",
+          "Log in to Assentry",
           `<p class="error">Incorrect email or password.</p>
           <form method="post" action="/link/login">
             ${hiddenLinkFields(linkParams)}
@@ -138,7 +138,7 @@ linkRouter.post("/authorize", async (req, res) => {
 
   const partner = await resolvePartnerForLink(partner_id, redirect_uri);
   if (!partner) {
-    return res.status(400).send(page("Unknown app", "<p>This app isn't registered with HAPI, or its redirect address doesn't match.</p>"));
+    return res.status(400).send(page("Unknown app", "<p>This app isn't registered with Assentry, or its redirect address doesn't match.</p>"));
   }
 
   if (decision === "deny") {
@@ -169,7 +169,7 @@ linkRouter.post("/authorize", async (req, res) => {
 const tokenSchema = z.object({ code: z.string() });
 
 // The partner's backend calls this directly (server-to-server, with its own
-// API key) to resolve the code into the HAPI userId it should store against
+// API key) to resolve the code into the Assentry userId it should store against
 // its own account record.
 linkRouter.post("/token", requirePartner, async (req: PartnerRequest, res) => {
   const parsed = tokenSchema.safeParse(req.body);

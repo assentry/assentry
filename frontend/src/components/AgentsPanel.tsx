@@ -21,7 +21,7 @@ const PLATFORM_COLORS: Record<Platform, string> = {
 };
 
 // The address a person's AI connects to — not a secret. The frontend is now
-// its own deployment (a different origin from the HAPI backend), so the
+// its own deployment (a different origin from the Assentry backend), so the
 // backend's address always has to be configured explicitly via
 // NEXT_PUBLIC_API_BASE_URL rather than inferred from window.location.
 const MCP_URL = `${API_BASE_URL}/mcp`;
@@ -38,7 +38,7 @@ const CONNECT_PROVIDERS: Record<
     // connector" dialog with the name and URL already entered — the person
     // only has to review and click Add.
     connectUrl: (mcpUrl) =>
-      `https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=HAPI&connectorUrl=${encodeURIComponent(mcpUrl)}`,
+      `https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Assentry&connectorUrl=${encodeURIComponent(mcpUrl)}`,
   },
   chatgpt: {
     // No public deep-link/prefill exists for ChatGPT's custom connectors

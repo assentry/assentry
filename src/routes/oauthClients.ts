@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 
 // Dynamic Client Registration (RFC 7591, minimal subset): lets an MCP client
-// like Claude register itself with HAPI the first time a person adds this
+// like Claude register itself with Assentry the first time a person adds this
 // connector, instead of a developer having to hand-create a client_id in
 // advance. Public clients only — no secret, PKCE is mandatory at /oauth/authorize.
 export const oauthClientsRouter = Router();

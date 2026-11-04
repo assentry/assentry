@@ -53,7 +53,7 @@ export function DeveloperAuthForm({ mode }: { mode: "login" | "signup" }) {
             <p className="mt-1 text-sm text-slate-400">
               {mode === "login"
                 ? "Manage your apps and API keys."
-                : "For building HAPI into your website. This is separate from a personal HAPI account."}
+                : "For building Assentry into your website. This is separate from a personal Assentry account."}
             </p>
 
             <form onSubmit={submit} className="mt-6 space-y-4">
@@ -95,7 +95,7 @@ export function DeveloperAuthForm({ mode }: { mode: "login" | "signup" }) {
             <p className="mt-5 text-center text-sm text-slate-400">
               {mode === "login" ? (
                 <>
-                  New to HAPI?{" "}
+                  New to Assentry?{" "}
                   <Link href="/developers/signup" className="font-medium text-cyan-300 hover:text-cyan-200">
                     Create a developer account
                   </Link>
@@ -111,7 +111,7 @@ export function DeveloperAuthForm({ mode }: { mode: "login" | "signup" }) {
             </p>
           </div>
           <p className="mt-4 text-center text-xs text-slate-500">
-            Looking for your personal HAPI account?{" "}
+            Looking for your personal Assentry account?{" "}
             <Link href="/login" className="text-slate-300 hover:text-white">
               Log in here
             </Link>

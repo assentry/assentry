@@ -149,7 +149,7 @@ function RevealedKeyNotice({ revealed, onDismiss }: { revealed: RevealedKey; onD
       <p className="mt-1 flex items-start gap-1.5 text-sm text-amber-200">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         This is the only time this key will be shown. Store it somewhere safe (e.g. your server&apos;s
-        HAPI_API_KEY environment variable) before closing this.
+        ASSENTRY_API_KEY environment variable) before closing this.
         {revealed.rotated && " The previous key has already stopped working."}
       </p>
       <div className="mt-3 flex items-center gap-2">
@@ -197,7 +197,7 @@ function CreateAppCard({ onCreated }: { onCreated: (app: DeveloperApp, apiKey: s
     <Card className="mt-6">
       <h2 className="text-sm font-semibold text-white">Create an app</h2>
       <p className="mt-1 text-sm text-slate-400">
-        One app per website or service that accepts HAPI agents. Each app gets its own API key.
+        One app per website or service that accepts Assentry agents. Each app gets its own API key.
       </p>
       <form onSubmit={create} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">

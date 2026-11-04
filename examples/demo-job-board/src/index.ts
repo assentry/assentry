@@ -1,12 +1,12 @@
-import { declareDiscoverableRoute, getCredentialFromRequest, HAPI, HAPIRequestError, hapiDiscovery } from "@hapi-id/sdk";
+import { declareDiscoverableRoute, getCredentialFromRequest, Assentry, AssentryRequestError, assentryDiscovery } from "@assentry/sdk";
 import bcrypt from "bcrypt";
 import cookieParser from "cookie-parser";
 import express from "express";
 
-const hapi = new HAPI({
-  apiKey: process.env.HAPI_API_KEY ?? "",
-  baseUrl: process.env.HAPI_BASE_URL ?? "http://localhost:4000",
-  partnerId: process.env.HAPI_PARTNER_PUBLIC_ID,
+const assentry = new Assentry({
+  apiKey: process.env.ASSENTRY_API_KEY ?? "",
+  baseUrl: process.env.ASSENTRY_BASE_URL ?? "http://localhost:4000",
+  partnerId: process.env.ASSENTRY_PARTNER_PUBLIC_ID,
 });
 
 // RENDER_EXTERNAL_URL is injected automatically by Render into every web
@@ -21,41 +21,41 @@ app.use(cookieParser());
 
 // Makes this site discoverable to an agent the moment it reaches *any* page
 // here — not just /login — so a generic instruction doesn't dead-end at the
-// human login wall with no way through. See @hapi-id/sdk's README for what
+// human login wall with no way through. See @assentry/sdk's README for what
 // this adds to every response. No routes list to pass in here — each
 // protected route declares itself where it's actually defined, below.
-app.use(hapiDiscovery({ partnerName: "Demo Job Board" }));
+app.use(assentryDiscovery({ partnerName: "Demo Job Board" }));
 
 // Stands in for this site's own user database. Keyed by the site's own
-// account id, holding whatever HAPI userId has been linked to it (case 2 —
+// account id, holding whatever Assentry userId has been linked to it (case 2 —
 // see STRATEGY.md). A real site would have a column on its existing users
 // table; this is an in-memory map purely so the demo has somewhere to put
 // the result of exchangeLinkCode.
-const accountLinks = new Map<string, { hapiUserId: string }>();
+const accountLinks = new Map<string, { assentryUserId: string }>();
 
 // A second, separate in-memory "database" for the *other* way of handling
-// case 2 — no HAPI-hosted confirmation screen at all. The site decides for
+// case 2 — no Assentry-hosted confirmation screen at all. The site decides for
 // itself, using only data the /verify + /profile handshake already
 // discloses, whether this is an existing account or a new one. This is the
 // primary intended path per STRATEGY.md; explicit linking above is the
 // stronger-assurance alternative, not a replacement for this.
 //
-// Known gap, accepted for this prototype: HAPI does not currently verify a
+// Known gap, accepted for this prototype: Assentry does not currently verify a
 // user's email, so matching on it here means trusting an unverified claim.
-// A real deployment needs HAPI to expose which fields are actually verified
+// A real deployment needs Assentry to expose which fields are actually verified
 // before a partner should treat a match as authoritative.
-const accountsByEmail = new Map<string, { hapiUserId: string; createdAt: Date }>();
+const accountsByEmail = new Map<string, { assentryUserId: string; createdAt: Date }>();
 
 // This site's own, completely ordinary account database — traditional
-// email/password, nothing HAPI-aware about it at all. A real account must
+// email/password, nothing Assentry-aware about it at all. A real account must
 // exist (via /signup) before /login will accept it, same as any real site —
 // this used to fake-accept any email, which didn't represent reality.
 const traditionalAccounts = new Map<string, { passwordHash: string }>();
 
-function matchOrCreateAccount(email: string | undefined, hapiUserId: string): "matched" | "created" | "unknown" {
+function matchOrCreateAccount(email: string | undefined, assentryUserId: string): "matched" | "created" | "unknown" {
   if (!email) return "unknown";
   if (accountsByEmail.has(email)) return "matched";
-  accountsByEmail.set(email, { hapiUserId, createdAt: new Date() });
+  accountsByEmail.set(email, { assentryUserId, createdAt: new Date() });
   return "created";
 }
 
@@ -84,7 +84,7 @@ button{margin-top:16px;padding:8px 16px}
 }
 
 // This site's own, completely ordinary account system — exactly what it
-// would look like with no HAPI integration at all. A human (not an agent)
+// would look like with no Assentry integration at all. A human (not an agent)
 // uses this. An account must actually exist (created here) before /login
 // will accept it, and the password must actually match — no fake-accepting
 // any email, which doesn't represent how a real site behaves.
@@ -150,16 +150,16 @@ app.post("/login", async (req, res) => {
 
 // Protected content, reachable two completely independent ways: a human
 // who logged in the ordinary way (session cookie), or an agent presenting
-// a HAPI credential (the standard Authorization: Bearer header — no
+// an Assentry credential (the standard Authorization: Bearer header — no
 // site-specific convention to guess). Neither path knows or cares that the
-// other exists; that's the point of HAPI coexisting with a site's existing
+// other exists; that's the point of Assentry coexisting with a site's existing
 // login rather than replacing it. Declared here, not via requireGrant's
 // `discover` option, since this route can't use requireGrant directly —
 // it has to accept a session as an alternative to a credential.
 declareDiscoverableRoute({
   path: "/dashboard",
   method: "GET",
-  description: "View the content behind this site's login, authorised via your HAPI credential",
+  description: "View the content behind this site's login, authorised via your Assentry credential",
 });
 
 app.get("/dashboard", async (req, res) => {
@@ -171,17 +171,17 @@ app.get("/dashboard", async (req, res) => {
   const credential = getCredentialFromRequest(req);
   if (!credential) return res.redirect("/login");
 
-  const verification = await hapi.verify(credential);
+  const verification = await assentry.verify(credential);
   if (!verification.valid) {
     return res.status(403).send(`Access denied: ${verification.reason}. <a href="/login">Back to login</a>`);
   }
 
-  const profile = await hapi.getProfile(credential, ["name", "email"]);
+  const profile = await assentry.getProfile(credential, ["name", "email"]);
   const name = profile.valid ? (profile.profile.name as string | undefined) : undefined;
   const email = profile.valid ? (profile.profile.email as string | undefined) : undefined;
   const accountStatus = matchOrCreateAccount(email, verification.userId);
 
-  res.send(renderDashboard({ name, accountStatus, via: "an authorised HAPI agent" }));
+  res.send(renderDashboard({ name, accountStatus, via: "an authorised Assentry agent" }));
 });
 
 // A fresh code every single visit — not cached, not session-sticky — so
@@ -209,14 +209,14 @@ function renderDashboard(params: {
 }
 
 // Case 2 demo: an already-logged-in user on this site clicks "Link your
-// HAPI account." `accountId` stands in for this site's own session —
+// Assentry account." `accountId` stands in for this site's own session —
 // there's no real login here, just a query param, since the point is to
-// prove the HAPI side of the handshake, not build a second auth system.
+// prove the Assentry side of the handshake, not build a second auth system.
 app.get("/link/start", (req, res) => {
   const accountId = String(req.query.accountId ?? "");
   if (!accountId) return res.status(400).send("missing accountId");
 
-  const url = hapi.getAccountLinkUrl({
+  const url = assentry.getAccountLinkUrl({
     redirectUri: `${publicBaseUrl}/link/callback`,
     state: accountId,
   });
@@ -230,15 +230,15 @@ app.get("/link/callback", async (req, res) => {
 
   let userId: string;
   try {
-    ({ userId } = await hapi.exchangeLinkCode(code));
+    ({ userId } = await assentry.exchangeLinkCode(code));
   } catch (err) {
-    const message = err instanceof HAPIRequestError ? err.message : "link exchange failed";
+    const message = err instanceof AssentryRequestError ? err.message : "link exchange failed";
     return res.status(400).send(`Could not link this account: ${message}`);
   }
-  accountLinks.set(accountId, { hapiUserId: userId });
+  accountLinks.set(accountId, { assentryUserId: userId });
 
   res.send(
-    `Linked! Account "${accountId}" on this site now maps to HAPI user ${userId}. ` +
+    `Linked! Account "${accountId}" on this site now maps to Assentry user ${userId}. ` +
       `Future credentials resolving to that user will be treated as this account — no password involved.`
   );
 });

@@ -7,7 +7,7 @@ import { issueCredentialForAgentGrant, listGrantsForAgent } from "../lib/agentAc
 // per request (stateless mode), scoped to whichever agent the bearer token
 // resolved to.
 export function buildMcpServerForAgent(agentId: string): McpServer {
-  const server = new McpServer({ name: "hapi", version: "0.1.0" });
+  const server = new McpServer({ name: "assentry", version: "0.1.0" });
 
   server.registerTool(
     "list_my_authorizations",
@@ -23,7 +23,7 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
           content: [
             {
               type: "text" as const,
-              text: "No active authorisations. Ask the person to authorise this agent for something in the HAPI personal app first.",
+              text: "No active authorisations. Ask the person to authorise this agent for something in the Assentry personal app first.",
             },
           ],
         };

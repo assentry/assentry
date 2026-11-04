@@ -26,7 +26,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 // The personal app + marketing site used to be built into public/ and
-// served from here; they're now their own Next.js deployment (hapi-frontend)
+// served from here; they're now their own Next.js deployment (assentry-frontend)
 // that talks to this API over HTTP, so there's no longer anything to serve.
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -58,10 +58,10 @@ app.use("/oauth", oauthTokenRouter);
 app.use("/mcp", mcpHttpRouter);
 
 // Account linking (case 2 — see STRATEGY.md): a partner's already-logged-in
-// human confirms their HAPI identity matches an existing account there.
+// human confirms their Assentry identity matches an existing account there.
 app.use("/link", linkRouter);
 
 const port = Number(process.env.PORT) || 4000;
 app.listen(port, () => {
-  console.log(`HAPI core listening on http://localhost:${port}`);
+  console.log(`Assentry core listening on http://localhost:${port}`);
 });

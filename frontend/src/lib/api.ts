@@ -1,6 +1,6 @@
-const TOKEN_KEY = "hapi_token";
+const TOKEN_KEY = "assentry_token";
 
-// The frontend is now its own deployment, separate from the HAPI backend
+// The frontend is now its own deployment, separate from the Assentry backend
 // (previously same-origin, built into the backend's public/ folder) — every
 // request needs an explicit base URL instead of a relative path.
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";

@@ -13,9 +13,9 @@ export async function requirePartner(
   res: Response,
   next: NextFunction
 ) {
-  const apiKey = req.headers["x-hapi-api-key"];
+  const apiKey = req.headers["x-assentry-api-key"];
   if (typeof apiKey !== "string") {
-    return res.status(401).json({ error: "missing x-hapi-api-key header" });
+    return res.status(401).json({ error: "missing x-assentry-api-key header" });
   }
   const partner = await prisma.partner.findUnique({
     where: { apiKeyHash: hashApiKey(apiKey) },

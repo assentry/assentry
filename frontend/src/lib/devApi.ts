@@ -1,10 +1,10 @@
 import { API_BASE_URL, ApiError } from "./api";
 
 // Developer console session — stored under its own key, separate from the
-// end-user `hapi_token`, so a person can be logged into both the personal
+// end-user `assentry_token`, so a person can be logged into both the personal
 // app and the developer console in one browser without either clobbering
 // the other. The backend rejects each token type on the other's routes.
-const DEV_TOKEN_KEY = "hapi_dev_token";
+const DEV_TOKEN_KEY = "assentry_dev_token";
 
 export function getDevToken(): string | null {
   if (typeof window === "undefined") return null;

@@ -69,7 +69,7 @@ const appSelect = {
 // A new key, plus the non-secret preview stored alongside its hash. The
 // full key exists only in the response that issues it.
 function issueKey() {
-  const apiKey = generateSecret("hapi");
+  const apiKey = generateSecret("assentry");
   return { apiKey, apiKeyHash: hashSecret(apiKey), apiKeyPreview: `${apiKey.slice(0, 12)}…` };
 }
 

@@ -28,7 +28,7 @@ export function page(title: string, body: string): string {
   p.hint { color: #64748b; font-size: 0.85rem; }
 </style></head>
 <body>
-  <div class="brand"><div class="mark">H</div><div class="name">HAPI</div></div>
+  <div class="brand"><div class="mark">H</div><div class="name">Assentry</div></div>
   <div class="card">${body}</div>
 </body></html>`;
 }

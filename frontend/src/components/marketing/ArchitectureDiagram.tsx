@@ -17,7 +17,7 @@ interface Layout {
   key: string;
   width: number;
   height: number;
-  hapi: Rect;
+  assentry: Rect;
   nodes: Record<NodeId, Rect>;
   titleSize: number;
   subSize: number;
@@ -27,7 +27,7 @@ const NODE_TEXT: Record<NodeId, { title: string; sub: string }> = {
   person: { title: "Person", sub: "Owns the identity" },
   app: { title: "Personal app", sub: "Consent & control" },
   agent: { title: "AI agent", sub: "Claude · ChatGPT · Grok" },
-  website: { title: "Website", sub: "@hapi-id/sdk installed" },
+  website: { title: "Website", sub: "@assentry/sdk installed" },
   grants: { title: "Grants", sub: "Which agent · which fields · until when" },
   oauth: { title: "OAuth 2.1 server", sub: "Connects the agent, no secrets shown" },
   mcp: { title: "MCP server", sub: "Issues short-lived credentials" },
@@ -42,7 +42,7 @@ const DESKTOP: Layout = {
   key: "d",
   width: 1000,
   height: 540,
-  hapi: { x: 320, y: 20, w: 360, h: 500 },
+  assentry: { x: 320, y: 20, w: 360, h: 500 },
   nodes: {
     person: { x: 30, y: 70, w: 190, h: 66 },
     app: { x: 30, y: 300, w: 190, h: 66 },
@@ -62,7 +62,7 @@ const MOBILE: Layout = {
   key: "m",
   width: 400,
   height: 690,
-  hapi: { x: 12, y: 200, w: 376, h: 470 },
+  assentry: { x: 12, y: 200, w: 376, h: 470 },
   nodes: {
     person: { x: 12, y: 12, w: 182, h: 60 },
     agent: { x: 206, y: 12, w: 182, h: 60 },
@@ -102,7 +102,7 @@ interface Step {
   // Force a horizontal or vertical route in a given layout where the
   // automatic nearest-side choice would cut through another box.
   axis?: Partial<Record<"d" | "m", "h" | "v">>;
-  // Route down the left or right edge of the stacked HAPI boxes, for hops
+  // Route down the left or right edge of the stacked Assentry boxes, for hops
   // that skip over a box in between.
   side?: "left" | "right";
   color: string;
@@ -117,7 +117,7 @@ const STEPS: Step[] = [
     to: "app",
     color: STEP_COLORS[0],
     title: "A person signs in",
-    detail: "They create their HAPI identity in the personal app.",
+    detail: "They create their Assentry identity in the personal app.",
   },
   {
     from: "agent",
@@ -125,7 +125,7 @@ const STEPS: Step[] = [
     color: STEP_COLORS[1],
     title: "Their AI agent connects",
     detail:
-      "The agent connects through HAPI's OAuth 2.1 flow. The person approves it on a HAPI screen. No keys or secrets are ever copied by hand.",
+      "The agent connects through Assentry's OAuth 2.1 flow. The person approves it on an Assentry screen. No keys or secrets are ever copied by hand.",
   },
   {
     from: "app",
@@ -142,7 +142,7 @@ const STEPS: Step[] = [
     color: STEP_COLORS[3],
     title: "The connection unlocks the MCP server",
     detail:
-      "The token the agent received when it connected is the only thing that lets it talk to HAPI's MCP server.",
+      "The token the agent received when it connected is the only thing that lets it talk to Assentry's MCP server.",
   },
   {
     from: "grants",
@@ -175,7 +175,7 @@ const STEPS: Step[] = [
     to: "verify",
     offset: -9,
     color: STEP_COLORS[7],
-    title: "The website checks with HAPI",
+    title: "The website checks with Assentry",
     detail: "The website's SDK calls /verify, and /profile for any personal fields it needs.",
   },
   {
@@ -183,7 +183,7 @@ const STEPS: Step[] = [
     to: "verify",
     side: "right",
     color: STEP_COLORS[8],
-    title: "HAPI re-checks the grant live",
+    title: "Assentry re-checks the grant live",
     detail:
       "/verify re-reads the grant: not revoked, not expired, agent still connected. /profile reads which fields that grant allows to be shared.",
   },
@@ -192,7 +192,7 @@ const STEPS: Step[] = [
     to: "website",
     offset: 9,
     color: STEP_COLORS[9],
-    title: "HAPI answers",
+    title: "Assentry answers",
     detail:
       "Valid or not, plus only the fields the person consented to share. What happens next is the website's own decision.",
   },
@@ -315,7 +315,7 @@ function Diagram({
       viewBox={`0 0 ${layout.width} ${layout.height}`}
       className={`h-auto w-full ${className}`}
       role="img"
-      aria-label="HAPI architecture: a person, their AI agent and a website, connected through HAPI's grants, OAuth server, MCP server, verification API and audit log."
+      aria-label="Assentry architecture: a person, their AI agent and a website, connected through Assentry's grants, OAuth server, MCP server, verification API and audit log."
     >
       <defs>
         <filter id={glow} x="-50%" y="-50%" width="200%" height="200%">
@@ -335,26 +335,26 @@ function Diagram({
         ))}
       </defs>
 
-      {/* HAPI boundary */}
+      {/* Assentry boundary */}
       <rect
-        x={layout.hapi.x}
-        y={layout.hapi.y}
-        width={layout.hapi.w}
-        height={layout.hapi.h}
+        x={layout.assentry.x}
+        y={layout.assentry.y}
+        width={layout.assentry.w}
+        height={layout.assentry.h}
         rx={24}
         fill="rgba(34,211,238,0.035)"
         stroke="rgba(34,211,238,0.3)"
         strokeDasharray="6 6"
       />
       <text
-        x={layout.hapi.x + 20}
-        y={layout.hapi.y + 30}
+        x={layout.assentry.x + 20}
+        y={layout.assentry.y + 30}
         fill="#67e8f9"
         fontSize={layout.titleSize + 1}
         fontWeight={700}
         letterSpacing="0.08em"
       >
-        HAPI
+        Assentry
       </text>
 
       {/* Connections */}
@@ -436,7 +436,7 @@ export function ArchitectureDiagram() {
     <section id="how-it-works" className="relative px-4 pb-24 sm:px-6">
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">How HAPI works</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">How Assentry works</h2>
         </div>
 
         <div className="glass rounded-3xl p-3 sm:p-6">

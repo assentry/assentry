@@ -27,7 +27,7 @@ export function Footer() {
           Get Early Access →
         </Link>
       </div>
-      <p className="mt-8 text-center text-xs text-slate-600">© {new Date().getFullYear()} HAPI. All rights reserved.</p>
+      <p className="mt-8 text-center text-xs text-slate-600">© {new Date().getFullYear()} Assentry. All rights reserved.</p>
     </footer>
   );
 }

@@ -65,7 +65,7 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
 
   const client = await resolveClient(client_id, redirect_uri);
   if (!client) {
-    return res.status(400).send(page("Unknown app", "<p>This app isn't registered with HAPI, or its redirect address doesn't match.</p>"));
+    return res.status(400).send(page("Unknown app", "<p>This app isn't registered with Assentry, or its redirect address doesn't match.</p>"));
   }
 
   const hidden = hiddenOAuthFields({
@@ -81,8 +81,8 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
   if (!sessionUserId) {
     return res.send(
       page(
-        "Log in to HAPI",
-        `<p class="hint">${escapeHtml(client.clientName ?? "An AI assistant")} wants to connect to your HAPI account.</p>
+        "Log in to Assentry",
+        `<p class="hint">${escapeHtml(client.clientName ?? "An AI assistant")} wants to connect to your Assentry account.</p>
         <form method="post" action="/oauth/login">
           ${hidden}
           <label>Email</label><input name="email" type="email" required>
@@ -96,7 +96,7 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
   res.send(
     page(
       "Connect an agent",
-      `<p class="hint"><strong>${escapeHtml(client.clientName ?? "An AI assistant")}</strong> wants to connect to your HAPI account. It won't be able to do anything until you separately authorise it for specific actions in the personal app.</p>
+      `<p class="hint"><strong>${escapeHtml(client.clientName ?? "An AI assistant")}</strong> wants to connect to your Assentry account. It won't be able to do anything until you separately authorise it for specific actions in the personal app.</p>
       <form method="post" action="/oauth/authorize">
         ${hidden}
         <label>Which AI is this?</label>
@@ -138,7 +138,7 @@ oauthAuthorizeRouter.post("/login", async (req, res) => {
       .status(401)
       .send(
         page(
-          "Log in to HAPI",
+          "Log in to Assentry",
           `<p class="error">Incorrect email or password.</p>
           <form method="post" action="/oauth/login">
             ${hiddenOAuthFields(oauthParams)}
@@ -185,7 +185,7 @@ oauthAuthorizeRouter.post("/authorize", async (req, res) => {
 
   const client = await resolveClient(client_id, redirect_uri);
   if (!client) {
-    return res.status(400).send(page("Unknown app", "<p>This app isn't registered with HAPI, or its redirect address doesn't match.</p>"));
+    return res.status(400).send(page("Unknown app", "<p>This app isn't registered with Assentry, or its redirect address doesn't match.</p>"));
   }
 
   if (decision === "deny") {

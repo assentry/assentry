@@ -17,7 +17,7 @@ const FEATURES = [
   {
     icon: Radar,
     title: "Discoverable from any page",
-    body: "Agents find your HAPI-enabled routes automatically — no human login wall to get stuck behind.",
+    body: "Agents find your Assentry-enabled routes automatically — no human login wall to get stuck behind.",
   },
 ];
 
@@ -36,7 +36,7 @@ export function DevelopersLanding() {
           Let AI agents into your website — with the person&apos;s permission.
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-300">
-          HAPI is identity and authorisation infrastructure connecting people, their AI agents and your
+          Assentry is identity and authorisation infrastructure connecting people, their AI agents and your
           website. Install the SDK, protect a route, and your site can verify who an agent represents and
           what it&apos;s been authorised to share — without ever handling a user&apos;s password.
         </p>
@@ -93,13 +93,13 @@ export function DevelopersLanding() {
             </Link>
           </div>
           <div>
-            <CodeBlock code="npm install @hapi-id/sdk" label="Terminal" />
+            <CodeBlock code="npm install @assentry/sdk" label="Terminal" />
             <CodeBlock
               label="server.ts"
-              code={`app.use(hapiDiscovery({ partnerName: "Your Site" }));
+              code={`app.use(assentryDiscovery({ partnerName: "Your Site" }));
 
-app.get("/account", requireGrant(hapi), (req: HAPIRequest, res) => {
-  res.json({ actingFor: req.hapiGrant!.userId });
+app.get("/account", requireGrant(assentry), (req: AssentryRequest, res) => {
+  res.json({ actingFor: req.assentryGrant!.userId });
 });`}
             />
           </div>

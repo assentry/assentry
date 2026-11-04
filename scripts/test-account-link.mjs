@@ -1,22 +1,22 @@
 // Drives case 2 end-to-end exactly as a real browser would: the partner
-// site (demo-job-board) sends an "already logged in" user to HAPI, the user
-// logs into HAPI and confirms, HAPI redirects back with a code, and the
+// site (demo-job-board) sends an "already logged in" user to Assentry, the user
+// logs into Assentry and confirms, Assentry redirects back with a code, and the
 // partner's own backend exchanges that code (server-to-server, with its own
-// API key) for the HAPI userId to store against its existing account.
+// API key) for the Assentry userId to store against its existing account.
 const JOB_BOARD = "http://localhost:4100";
 const DEMO_ACCOUNT_ID = "acme-user-1";
 
 async function main() {
-  console.log("== 1. partner site sends its logged-in user to HAPI ==");
+  console.log("== 1. partner site sends its logged-in user to Assentry ==");
   const start = await fetch(`${JOB_BOARD}/link/start?accountId=${DEMO_ACCOUNT_ID}`, { redirect: "manual" });
   const authorizeUrl = start.headers.get("location");
-  if (!authorizeUrl) throw new Error("expected a redirect to HAPI's /link/authorize");
+  if (!authorizeUrl) throw new Error("expected a redirect to Assentry's /link/authorize");
   console.log("redirected to:", authorizeUrl);
 
   console.log("\n== 2. GET /link/authorize (no session) — should render a login form ==");
   const firstVisit = await fetch(authorizeUrl, { redirect: "manual" });
   const loginHtml = await firstVisit.text();
-  if (!firstVisit.ok || !loginHtml.includes("Log in to HAPI")) {
+  if (!firstVisit.ok || !loginHtml.includes("Log in to Assentry")) {
     throw new Error(`expected a login form, got: ${loginHtml.slice(0, 200)}`);
   }
 

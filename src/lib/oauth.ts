@@ -2,7 +2,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
-export const OAUTH_SESSION_COOKIE = "hapi_oauth_session";
+export const OAUTH_SESSION_COOKIE = "assentry_oauth_session";
 
 // A short-lived browser session for the /oauth/authorize login+consent
 // pages specifically. Deliberately separate from the SPA's bearer-token

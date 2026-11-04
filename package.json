@@ -1,8 +1,8 @@
 {
-  "name": "hapi-core",
+  "name": "assentry-core",
   "version": "0.1.0",
   "private": true,
-  "description": "HAPI identity, grant, verification and audit core service",
+  "description": "Assentry identity, grant, verification and audit core service",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
