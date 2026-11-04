@@ -33,7 +33,7 @@ services:
         sync: false
 
   - type: web
-    name: assentry-demo-site
+    name: demo-site
     runtime: node
     plan: free
     buildCommand: cd examples/demo-site && npm install --include=dev && npm run build
