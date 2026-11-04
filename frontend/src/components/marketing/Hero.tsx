@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export function Hero() {
   return (
-    <section id="platform" className="relative overflow-hidden pt-20 pb-16 sm:pt-28 sm:pb-20">
+    <section id="platform" className="relative overflow-hidden pt-10 pb-10 sm:pt-14 sm:pb-12">
       <div
         className="grid-texture pointer-events-none absolute inset-0 opacity-60"
         style={{ maskImage: "linear-gradient(to bottom, black 55%, transparent)", WebkitMaskImage: "linear-gradient(to bottom, black 55%, transparent)" }}
@@ -18,7 +18,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="text-glow-cyan text-5xl font-bold leading-[1.08] tracking-tight text-white sm:text-6xl lg:text-7xl"
+          className="text-glow-cyan text-3xl font-bold leading-[1.1] tracking-tight text-white sm:text-4xl lg:text-5xl"
         >
           Your AI. Your Identity.
           <br />
@@ -31,17 +31,17 @@ export function Hero() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row"
+          className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row"
         >
           <Link
             href="/developers"
-            className="rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 px-8 py-3.5 text-sm font-semibold text-navy-950 shadow-lg shadow-cyan-500/25 transition-transform hover:scale-105"
+            className="rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 px-6 py-2.5 text-sm font-semibold text-navy-950 shadow-lg shadow-cyan-500/25 transition-transform hover:scale-105"
           >
             For Developers
           </Link>
           <Link
             href="/signup"
-            className="rounded-full border border-white/15 px-8 py-3.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/5"
+            className="rounded-full border border-white/15 px-6 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/5"
           >
             For End Users
           </Link>
