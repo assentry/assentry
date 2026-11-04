@@ -230,8 +230,8 @@ export function DeveloperDocs() {
                 [
                   <b key="c">Credential</b>,
                   <>
-                    A short-lived signed token the agent fetches from Assentry right before acting, and presents to your site as{" "}
-                    <C>Authorization: Bearer &lt;credential&gt;</C>. It contains IDs and an expiry only — never personal data.
+                    A signed token the agent fetches from Assentry and presents to your site as{" "}
+                    <C>Authorization: Bearer &lt;credential&gt;</C>. It lasts as long as the person's grant allows, and contains IDs only — never personal data.
                   </>,
                 ],
               ]}

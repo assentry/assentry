@@ -28,7 +28,7 @@ const USER_STEPS = [
 const DEV_POINTS = [
   {
     title: "What it is",
-    body: "An authorisation layer for AI agents. A person grants their agent time-limited access to chosen profile fields. The agent connects over OAuth 2.1 and a hosted MCP server, and presents a short-lived signed credential to your site.",
+    body: "An authorisation layer for AI agents. A person grants their agent access to chosen profile fields, for as long as they choose. The agent connects over OAuth 2.1 and a hosted MCP server, and presents a signed credential to your site.",
   },
   {
     title: "What you install",

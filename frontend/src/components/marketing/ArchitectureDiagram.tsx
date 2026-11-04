@@ -30,7 +30,7 @@ const NODE_TEXT: Record<NodeId, { title: string; sub: string }> = {
   website: { title: "Website", sub: "@assentry/sdk installed" },
   grants: { title: "Grants", sub: "Which agent · which fields · until when" },
   oauth: { title: "OAuth 2.1 server", sub: "Connects the agent, no secrets shown" },
-  mcp: { title: "MCP server", sub: "Issues short-lived credentials" },
+  mcp: { title: "MCP server", sub: "Issues signed credentials" },
   verify: { title: "/verify · /profile", sub: "Checks credentials, discloses consented fields" },
   audit: { title: "Audit log", sub: "Every decision, visible to the person" },
 };
@@ -160,7 +160,7 @@ const STEPS: Step[] = [
     color: STEP_COLORS[5],
     title: "The agent receives a credential",
     detail:
-      "A fresh, short-lived signed credential, fetched right before acting. It holds IDs and an expiry, never personal data.",
+      "A signed credential that lasts as long as the person allowed. It holds IDs only, never personal data.",
   },
   {
     from: "agent",
