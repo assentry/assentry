@@ -322,8 +322,8 @@ function Diagram({
             fill="none"
             stroke={isLit ? s.color : "rgba(148,163,184,0.22)"}
             strokeWidth={isLit ? 2.2 : 1.2}
-            strokeDasharray={isLit ? undefined : "4 6"}
-            className={isActive && !reduced ? "animate-dash" : undefined}
+            strokeDasharray={isLit ? "6 10" : "4 6"}
+            className={isLit && !reduced ? "animate-dash" : undefined}
             markerEnd={`url(#arrow-${isLit ? i : "dim"}-${layout.key})`}
           />
         );
