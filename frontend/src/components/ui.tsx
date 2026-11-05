@@ -54,8 +54,12 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   );
 }
 
-export function Label({ children }: { children: ReactNode }) {
-  return <label className="mb-1 block text-xs font-medium text-slate-400">{children}</label>;
+export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
+  return (
+    <label htmlFor={htmlFor} className="mb-1 block text-xs font-medium text-slate-400">
+      {children}
+    </label>
+  );
 }
 
 type BadgeTone = "success" | "danger" | "warning" | "neutral";

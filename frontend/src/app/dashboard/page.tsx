@@ -6,6 +6,7 @@ import { AgentsPanel } from "../../components/AgentsPanel";
 import { AuditPanel } from "../../components/AuditPanel";
 import { GrantsPanel } from "../../components/GrantsPanel";
 import { OverviewPanel } from "../../components/OverviewPanel";
+import { ProfilePanel } from "../../components/ProfilePanel";
 import { Sidebar, type Tab } from "../../components/Sidebar";
 import { api, clearToken, getToken } from "../../lib/api";
 import type { Agent, AuditLog, Grant, User } from "../../lib/types";
@@ -67,6 +68,7 @@ export default function DashboardPage() {
 
   const TITLES: Record<Tab, string> = {
     overview: "Overview",
+    profile: "Profile",
     agents: "Agents",
     grants: "Authorisations",
     audit: "Activity",
@@ -87,6 +89,7 @@ export default function DashboardPage() {
           ) : (
             <div key={tab} className="animate-fade-in">
               {tab === "overview" && <OverviewPanel user={user} agents={agents} grants={grants} logs={logs} />}
+              {tab === "profile" && <ProfilePanel accountEmail={user.email} />}
               {tab === "agents" && <AgentsPanel agents={agents} onChange={refreshAll} />}
               {tab === "grants" && <GrantsPanel agents={agents} grants={grants} onChange={refreshAll} />}
               {tab === "audit" && <AuditPanel logs={logs} />}

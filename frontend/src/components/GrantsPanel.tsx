@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { Agent, Grant, Platform } from "../lib/types";
+import { PROFILE_FIELDS } from "../lib/profileFields";
 import { Badge, Button, Card, EmptyState, Input, Label, MultiSelect, Select } from "./ui";
 
 const PLATFORM_LABELS: Record<Platform, string> = {
@@ -12,13 +13,7 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   other: "Other",
 };
 
-const FIELD_OPTIONS = [
-  { value: "name", label: "Name" },
-  { value: "email", label: "Email" },
-  { value: "resume", label: "Resume" },
-  { value: "phone", label: "Phone number" },
-  { value: "address", label: "Address" },
-];
+const FIELD_OPTIONS = PROFILE_FIELDS.map((f) => ({ value: f.key, label: f.label }));
 
 function grantStatus(grant: Grant): { label: string; tone: "success" | "danger" | "warning" } {
   if (grant.revokedAt) return { label: "Revoked", tone: "danger" };
@@ -37,7 +32,7 @@ export function GrantsPanel({
 }) {
   const activeAgents = agents.filter((a) => !a.revokedAt);
   const [agentId, setAgentId] = useState(activeAgents[0]?.id ?? "");
-  const [fields, setFields] = useState<string[]>(["name", "email", "resume"]);
+  const [fields, setFields] = useState<string[]>(["name", "email"]);
   const [minutes, setMinutes] = useState(60);
   const [busy, setBusy] = useState(false);
   const [issuedCredential, setIssuedCredential] = useState<string | null>(null);

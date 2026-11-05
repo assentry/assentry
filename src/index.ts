@@ -14,6 +14,7 @@ import { oauthClientsRouter } from "./routes/oauthClients";
 import { oauthMetaRouter } from "./routes/oauthMeta";
 import { oauthTokenRouter } from "./routes/oauthToken";
 import { profileRouter } from "./routes/profile";
+import { meRouter } from "./routes/me";
 import { verifyRouter } from "./routes/verify";
 
 const app = express();
@@ -36,6 +37,7 @@ app.use("/auth", authRouter);
 app.use("/agents", agentsRouter);
 app.use("/grants", grantsRouter);
 app.use("/audit", auditRouter);
+app.use("/me", meRouter);
 
 // Partner-facing (business SDK), API-key authenticated.
 app.use("/verify", verifyRouter);

@@ -1,13 +1,14 @@
 "use client";
 
-import { Activity, Bot, LayoutGrid, LogOut, Menu, ShieldCheck, X } from "lucide-react";
+import { Activity, Bot, LayoutGrid, LogOut, Menu, ShieldCheck, UserRound, X } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "./Logo";
 
-export type Tab = "overview" | "agents" | "grants" | "audit";
+export type Tab = "overview" | "profile" | "agents" | "grants" | "audit";
 
 const NAV: { id: Tab; label: string; icon: typeof LayoutGrid }[] = [
   { id: "overview", label: "Overview", icon: LayoutGrid },
+  { id: "profile", label: "Profile", icon: UserRound },
   { id: "agents", label: "Agents", icon: Bot },
   { id: "grants", label: "Authorisations", icon: ShieldCheck },
   { id: "audit", label: "Activity", icon: Activity },

@@ -336,8 +336,10 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             <Signature>{"getProfile(credential: string, fields: string[]): Promise<ProfileResult>"}</Signature>
             <P>
               Returns the subset of <C>fields</C> the person consented to share for this grant (and has
-              filled in). Fields they didn&apos;t consent to are simply omitted — not an error. The personal
-              app currently offers <C>name</C>, <C>email</C>, <C>resume</C>, <C>phone</C> and <C>address</C>.
+              filled in). Fields they didn&apos;t consent to are simply omitted — not an error. People declare
+              these details themselves; Assentry doesn&apos;t vouch for them. The personal app currently offers{" "}
+              <C>name</C>, <C>preferred_name</C>, <C>birthdate</C>, <C>email</C>, <C>phone_number</C>,{" "}
+              <C>address</C>, <C>job_title</C>, <C>employer</C> and <C>resume</C>.
             </P>
             <CodeBlock
               label="ProfileResult"
