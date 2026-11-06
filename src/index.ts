@@ -16,6 +16,7 @@ import { oauthTokenRouter } from "./routes/oauthToken";
 import { profileRouter } from "./routes/profile";
 import { signInRouter } from "./routes/signIn";
 import { domainVerificationRouter } from "./routes/domainVerification";
+import { getJwks } from "./lib/keys";
 import { meRouter } from "./routes/me";
 import { verifyRouter } from "./routes/verify";
 
@@ -46,6 +47,17 @@ app.use("/verify", verifyRouter);
 app.use("/profile", profileRouter);
 app.use("/sign-in-requests", signInRouter);
 app.use("/domain-verification", domainVerificationRouter);
+
+// Public keys that sign agent credentials, so anyone can check a credential
+// came from Assentry. Sites still ask /verify, which also checks revocation.
+app.get("/.well-known/jwks.json", async (_req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.json(await getJwks());
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Developer console: developer accounts and the partner apps/API keys they
 // own. Separate session type from the personal app's.

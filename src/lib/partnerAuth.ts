@@ -1,9 +1,10 @@
+import type { Partner } from "@prisma/client";
 import { NextFunction, Request, Response } from "express";
 import { hashSecret } from "./secrets";
 import { prisma } from "./prisma";
 
 export interface PartnerRequest extends Request {
-  partner?: { id: string };
+  partner?: Partner;
 }
 
 export const hashPartnerKey = hashSecret;
@@ -24,6 +25,6 @@ export async function requirePartner(
   if (!partner || partner.revokedAt) {
     return res.status(401).json({ error: "invalid api key" });
   }
-  req.partner = { id: partner.id };
+  req.partner = partner;
   next();
 }

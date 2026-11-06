@@ -62,6 +62,7 @@ export interface DeveloperApp {
   domain: string | null;
   domainVerificationToken: string | null;
   domainVerifiedAt: string | null;
+  declaredFields: string[];
   createdAt: string;
   revokedAt: string | null;
 }

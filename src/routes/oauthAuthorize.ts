@@ -93,12 +93,31 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
     );
   }
 
+  // Reconnecting an assistant shouldn't leave a stale connection behind:
+  // offer to replace an existing one, carrying its permissions over.
+  const existing = await prisma.agent.findMany({
+    where: { userId: sessionUserId, revokedAt: null, secretHash: { not: null } },
+    orderBy: { createdAt: "desc" },
+  });
+  const replaceChoices = existing.length
+    ? `<label>Already connected</label>
+        ${existing
+          .map(
+            (a, i) => `<label class="choice"><input type="radio" name="replace_agent" value="${escapeHtml(a.id)}"${i === 0 ? " checked" : ""}>
+          Replace ${escapeHtml(a.label || PLATFORM_LABELS[a.platform as keyof typeof PLATFORM_LABELS] || a.platform)}
+          <span class="muted">(connected ${a.createdAt.toISOString().slice(0, 10)}). Its permissions move to this connection and the old one is disconnected.</span></label>`
+          )
+          .join("")}
+        <label class="choice"><input type="radio" name="replace_agent" value=""> Keep it and add this as another connection</label>`
+    : "";
+
   res.send(
     page(
       "Connect an agent",
       `<p class="hint"><strong>${escapeHtml(client.clientName ?? "An AI assistant")}</strong> wants to connect to your Assentry account. It won't be able to do anything until you separately authorise it for specific actions in the personal app.</p>
       <form method="post" action="/oauth/authorize">
         ${hidden}
+        ${replaceChoices}
         <label>Which AI is this?</label>
         <select name="platform">
           ${Object.entries(PLATFORM_LABELS)
@@ -169,6 +188,7 @@ const consentBodySchema = z.object({
   code_challenge_method: z.literal("S256"),
   platform: z.enum(["claude", "chatgpt", "grok", "other"]).default("claude"),
   label: z.string().optional(),
+  replace_agent: z.string().optional(),
 });
 
 // The actual consent decision. Re-validates client_id/redirect_uri against
@@ -180,7 +200,7 @@ oauthAuthorizeRouter.post("/authorize", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).send(page("Invalid request", "<p>Something was missing from that submission.</p>"));
   }
-  const { decision, client_id, redirect_uri, state, code_challenge, code_challenge_method, platform, label } =
+  const { decision, client_id, redirect_uri, state, code_challenge, code_challenge_method, platform, label, replace_agent } =
     parsed.data;
 
   const client = await resolveClient(client_id, redirect_uri);
@@ -198,8 +218,13 @@ oauthAuthorizeRouter.post("/authorize", async (req, res) => {
     return res.status(401).send(page("Session expired", "<p>Your session expired — go back and log in again.</p>"));
   }
 
+  // Only an active connection of this same person can be replaced.
+  const replaced = replace_agent
+    ? await prisma.agent.findFirst({ where: { id: replace_agent, userId, revokedAt: null } })
+    : null;
+
   const agent = await prisma.agent.create({
-    data: { userId, platform, label: label || undefined },
+    data: { userId, platform, label: label || replaced?.label || undefined },
   });
 
   const code = generateAuthorizationCode();
@@ -212,6 +237,7 @@ oauthAuthorizeRouter.post("/authorize", async (req, res) => {
       redirectUri: redirect_uri,
       codeChallenge: code_challenge,
       codeChallengeMethod: code_challenge_method,
+      replacesAgentId: replaced?.id ?? null,
       expiresAt: new Date(Date.now() + 60_000),
     },
   });

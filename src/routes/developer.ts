@@ -66,6 +66,7 @@ const appSelect = {
   domain: true,
   domainVerificationToken: true,
   domainVerifiedAt: true,
+  declaredFields: true,
   createdAt: true,
   revokedAt: true,
 } as const;
@@ -91,6 +92,11 @@ apps.get("/", async (req: DeveloperRequest, res) => {
 });
 
 const nameSchema = z.string().trim().min(1).max(100);
+// The profile details a site says it needs; same naming rule as the profile itself.
+const declaredFieldsSchema = z
+  .array(z.string().regex(/^[a-z][a-z0-9_]{0,39}$/, "field names are lowercase letters, digits and _"))
+  .max(40)
+  .transform((fields) => Array.from(new Set(fields)));
 const domainSchema = z.string().transform((value, ctx) => {
   const domain = normaliseDomain(value);
   if (!domain) {
@@ -101,7 +107,9 @@ const domainSchema = z.string().transform((value, ctx) => {
 });
 
 apps.post("/", async (req: DeveloperRequest, res) => {
-  const parsed = z.object({ name: nameSchema, domain: domainSchema }).safeParse(req.body);
+  const parsed = z
+    .object({ name: nameSchema, domain: domainSchema, declaredFields: declaredFieldsSchema.optional() })
+    .safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed.error) });
 
   const { apiKey, apiKeyHash, apiKeyPreview } = issueKey();
@@ -110,6 +118,7 @@ apps.post("/", async (req: DeveloperRequest, res) => {
       name: parsed.data.name,
       domain: parsed.data.domain,
       domainVerificationToken: newVerificationToken(),
+      declaredFields: parsed.data.declaredFields ?? [],
       developerId: req.developerId!,
       apiKeyHash,
       apiKeyPreview,
@@ -148,7 +157,7 @@ apps.post("/:id/revoke", async (req: DeveloperRequest, res) => {
 
 // Account-linking redirect URIs (see /link/authorize) — validated against
 // exactly this list, so they have to be registered before linking works.
-// Name, domain and account-linking redirect URIs (see /link/authorize).
+// Name, domain, declared profile details and account-linking redirect URIs (see /link/authorize).
 // Changing the domain drops its verification, since it's a different site.
 apps.patch("/:id", async (req: DeveloperRequest, res) => {
   const parsed = z
@@ -156,6 +165,7 @@ apps.patch("/:id", async (req: DeveloperRequest, res) => {
       name: nameSchema.optional(),
       domain: domainSchema.optional(),
       linkRedirectUris: z.array(z.string().url().refine((u) => /^https?:\/\//.test(u))).max(10).optional(),
+      declaredFields: declaredFieldsSchema.optional(),
     })
     .safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed.error) });
@@ -163,13 +173,14 @@ apps.patch("/:id", async (req: DeveloperRequest, res) => {
   const existing = await findOwnApp(req.developerId!, req.params.id);
   if (!existing) return res.status(404).json({ error: "app not found" });
 
-  const { name, domain, linkRedirectUris } = parsed.data;
+  const { name, domain, linkRedirectUris, declaredFields } = parsed.data;
   const domainChanged = domain !== undefined && domain !== existing.domain;
   const app = await prisma.partner.update({
     where: { id: existing.id },
     data: {
       ...(name !== undefined ? { name } : {}),
       ...(linkRedirectUris !== undefined ? { linkRedirectUris } : {}),
+      ...(declaredFields !== undefined ? { declaredFields } : {}),
       ...(domainChanged ? { domain, domainVerificationToken: newVerificationToken(), domainVerifiedAt: null } : {}),
     },
     select: appSelect,

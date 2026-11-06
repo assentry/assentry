@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { sessionKeys } from "./keys";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
 
 // Developer sessions carry an explicit kind so they can never be used as an
 // end-user session (requireUser rejects any token with a kind) and an
@@ -12,7 +12,7 @@ interface DeveloperSession {
 }
 
 export function signDeveloperSession(developerId: string): string {
-  return jwt.sign({ sub: developerId, kind: "developer" } satisfies DeveloperSession, JWT_SECRET, {
+  return jwt.sign({ sub: developerId, kind: "developer" } satisfies DeveloperSession, sessionKeys.developer, {
     expiresIn: "7d",
   });
 }
@@ -27,7 +27,7 @@ export function requireDeveloper(req: DeveloperRequest, res: Response, next: Nex
     return res.status(401).json({ error: "missing bearer token" });
   }
   try {
-    const payload = jwt.verify(header.slice("Bearer ".length), JWT_SECRET) as Partial<DeveloperSession>;
+    const payload = jwt.verify(header.slice("Bearer ".length), sessionKeys.developer, { algorithms: ["HS256"] }) as Partial<DeveloperSession>;
     if (payload.kind !== "developer" || typeof payload.sub !== "string") {
       return res.status(401).json({ error: "invalid or expired session" });
     }

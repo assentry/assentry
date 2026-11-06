@@ -230,8 +230,11 @@ export function DeveloperDocs() {
                 [
                   <b key="c">Credential</b>,
                   <>
-                    A signed token the agent fetches from Assentry and presents to your site as{" "}
-                    <C>Authorization: Bearer &lt;credential&gt;</C>. It lasts as long as the person's grant allows, and contains IDs only — never personal data.
+                    A signed token issued for <i>your</i> site&apos;s verified domain only: Assentry refuses it anywhere else.
+                    Browser agents get it by approving the sign-in code on your page; others fetch it and send{" "}
+                    <C>Authorization: Bearer &lt;credential&gt;</C>. It lasts as long as the person&apos;s grant allows and
+                    contains no personal data. Signed with Assentry&apos;s published keys (<C>{`${BASE_URL}/.well-known/jwks.json`}</C>),
+                    but always check it with <C>verify</C>, which also catches withdrawn permission.
                   </>,
                 ],
               ]}
@@ -240,9 +243,9 @@ export function DeveloperDocs() {
             <P>
               When a request arrives with a credential, your server asks Assentry whether it&apos;s valid
               (<C>verify</C>) — every time, never trusting the token on its own. If it is, you know which
-              person the agent represents. If you need details like their name or email, you ask Assentry for
-              them separately (<C>getProfile</C>), and you only get the fields that person consented to
-              share for this grant.
+              person the agent represents, as an ID specific to you. If you need details like their name or email, you
+              ask Assentry for them separately (<C>getProfile</C>), and you only get details you declared in the
+              console <i>and</i> the person allowed.
             </P>
             <H3>What Assentry does not do</H3>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-slate-300">
@@ -274,7 +277,9 @@ export function DeveloperDocs() {
                 <Link href="/developers/console" className="text-neutral-300 hover:text-neutral-200">
                   console
                 </Link>
-                , create an app and copy its API key. It&apos;s shown once — store it as a secret on your server.
+                , create an app with your site&apos;s domain, tick the details your site needs, and copy its API key.
+                It&apos;s shown once: store it as a secret on your server. Once the site is deployed with the SDK,
+                click <b>Verify domain</b>.
               </li>
               <li>Install the SDK:</li>
             </ol>
@@ -321,7 +326,15 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
 
             <H3 id="sdk-verify">assentry.verify(credential)</H3>
             <Signature>{"verify(credential: string): Promise<VerifyResult>"}</Signature>
-            <P>Checks a credential with Assentry. Always a live check — revocation takes effect immediately.</P>
+            <P>
+              Checks a credential with Assentry. Always a live check, so withdrawn permission takes effect immediately. A
+              credential issued for a different site is refused with <C>wrong_site</C>.
+            </P>
+            <P>
+              <C>userId</C> and <C>agentId</C> are specific to your developer account: the same person always has the
+              same <C>userId</C> across your apps, but every other developer sees a different one, so sites can&apos;t
+              link a person between them. Key your accounts on <C>userId</C>.
+            </P>
             <CodeBlock
               label="VerifyResult"
               code={`type VerifyResult =
@@ -329,14 +342,16 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
   | { valid: false; reason: DenialReason };`}
             />
             <P>
-              Throws <C>AssentryRequestError</C> (status 401) if your API key is wrong or revoked.
+              Never throws: if Assentry can&apos;t be reached or rejects your API key, it returns{" "}
+              <C>{`{ valid: false, reason: "assentry_unavailable" }`}</C>.
             </P>
 
             <H3 id="sdk-getprofile">assentry.getProfile(credential, fields)</H3>
             <Signature>{"getProfile(credential: string, fields: string[]): Promise<ProfileResult>"}</Signature>
             <P>
-              Returns the subset of <C>fields</C> the person consented to share for this grant (and has
-              filled in). Fields they didn&apos;t consent to are simply omitted — not an error. People declare
+              Returns the subset of <C>fields</C> that your app declared in the console <i>and</i> the person allowed for
+              this grant (and has filled in). Anything else is simply omitted, not an error; fields your app didn&apos;t
+              declare are listed in <C>undeclaredFields</C> so you can spot a missing declaration. People declare
               these details themselves; Assentry doesn&apos;t vouch for them. The personal app currently offers{" "}
               <C>name</C>, <C>preferred_name</C>, <C>birthdate</C>, <C>email</C>, <C>phone_number</C>,{" "}
               <C>address</C>, <C>job_title</C>, <C>employer</C> and <C>resume</C>.
@@ -344,7 +359,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             <CodeBlock
               label="ProfileResult"
               code={`type ProfileResult =
-  | { valid: true; profile: Record<string, unknown> }
+  | { valid: true; profile: Record<string, unknown>; undeclaredFields?: string[] }
   | { valid: false; reason: DenialReason };`}
             />
 
@@ -561,6 +576,9 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
                 [<C key="3">revoked</C>, "The person revoked this authorisation.", "Deny. Only the person can authorise again."],
                 [<C key="4">agent_revoked</C>, "The person disconnected this agent entirely.", "Deny."],
                 [<C key="5">expired</C>, "The grant's time window has ended.", "Deny. The person can issue a new grant."],
+                [<C key="6">wrong_site</C>, "The credential was issued for a different site, or your app's domain isn't verified.", "Deny. The agent needs a credential for your site."],
+                [<C key="7">sign_in_ended</C>, "The person ended this sign-in from their Sign-ins screen.", "Deny. The agent can sign in again if its permission still holds."],
+                [<C key="8">assentry_unavailable</C>, "Assentry couldn't be reached, or rejected your API key (SDK only).", "Deny for now and check your API key."],
               ]}
             />
             <P>

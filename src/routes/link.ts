@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { escapeHtml, page } from "../lib/htmlPage";
 import { generateAuthorizationCode, getBrowserSessionUserId, OAUTH_SESSION_COOKIE, signOAuthSession } from "../lib/oauth";
+import { pairwiseUserId } from "../lib/pairwise";
 import { PartnerRequest, requirePartner } from "../lib/partnerAuth";
 import { prisma } from "../lib/prisma";
 
@@ -169,7 +170,7 @@ linkRouter.post("/authorize", async (req, res) => {
 const tokenSchema = z.object({ code: z.string() });
 
 // The partner's backend calls this directly (server-to-server, with its own
-// API key) to resolve the code into the Assentry userId it should store against
+// API key) to resolve the code into the per-site Assentry userId it should store against
 // its own account record.
 linkRouter.post("/token", requirePartner, async (req: PartnerRequest, res) => {
   const parsed = tokenSchema.safeParse(req.body);
@@ -189,5 +190,7 @@ linkRouter.post("/token", requirePartner, async (req: PartnerRequest, res) => {
 
   await prisma.accountLinkCode.update({ where: { id: link.id }, data: { usedAt: new Date() } });
 
-  res.json({ userId: link.userId });
+  // The same per-site ID /verify returns for this person, so the site can
+  // match later agent visits to the account it links here.
+  res.json({ userId: pairwiseUserId(link.userId, req.partner!) });
 });

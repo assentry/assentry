@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { sessionKeys } from "./keys";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
 
 export interface UserSession {
   sub: string; // userId
@@ -12,7 +12,7 @@ export interface UserSession {
 }
 
 export function signUserSession(userId: string): string {
-  return jwt.sign({ sub: userId } satisfies UserSession, JWT_SECRET, {
+  return jwt.sign({ sub: userId } satisfies UserSession, sessionKeys.user, {
     expiresIn: "7d",
   });
 }
@@ -36,7 +36,8 @@ export function requireUser(
   try {
     const payload = jwt.verify(
       header.slice("Bearer ".length),
-      JWT_SECRET
+      sessionKeys.user,
+      { algorithms: ["HS256"] }
     ) as UserSession;
     if (typeof payload.sub !== "string" || payload.kind !== undefined) {
       return res.status(401).json({ error: "invalid or expired session" });

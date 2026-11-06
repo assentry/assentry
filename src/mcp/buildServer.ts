@@ -47,22 +47,34 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
     "get_credential",
     {
       description:
-        "Fetch a fresh, short-lived credential for one specific authorisation (by its grant id from " +
-        "list_my_authorizations), to present to a participating site right before acting. Always call " +
-        "this immediately before acting rather than reusing a credential from earlier in the conversation.",
-      inputSchema: { grantId: z.string().describe("The grant id from list_my_authorizations") },
+        "For sites you reach over HTTP rather than in a browser: fetch a credential for one specific " +
+        "authorisation (grant id from list_my_authorizations) and one participating site (its domain), to send " +
+        "as 'Authorization: Bearer <credential>'. It only works on that site. Fetch it right before acting. " +
+        "If you're in a browser, use approve_sign_in instead and never type a credential into a page.",
+      inputSchema: {
+        grantId: z.string().describe("The grant id from list_my_authorizations"),
+        siteDomain: z.string().describe("The domain of the site you'll present it to, e.g. shop.example.com"),
+      },
     },
-    async ({ grantId }) => {
-      const outcome = await issueCredentialForAgentGrant(agentId, grantId);
+    async ({ grantId, siteDomain }) => {
+      const outcome = await issueCredentialForAgentGrant(agentId, grantId, siteDomain);
       if (!outcome.ok) {
-        return { isError: true, content: [{ type: "text" as const, text: outcome.error.replace(/_/g, " ") }] };
+        const text =
+          outcome.error === "unknown_site"
+            ? `${siteDomain} isn't a participating site with a verified domain, so there's no credential for it.`
+            : outcome.error.replace(/_/g, " ");
+        return { isError: true, content: [{ type: "text" as const, text }] };
       }
       return {
         content: [
           {
             type: "text" as const,
             text: JSON.stringify(
-              { credential: outcome.credential, expiresAt: outcome.expiresAt },
+              {
+                credential: outcome.credential,
+                site: `${outcome.siteName} (${outcome.site})`,
+                expiresAt: outcome.expiresAt,
+              },
               null,
               2
             ),
@@ -124,7 +136,10 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
             type: "text" as const,
             text:
               `Approved for "${outcome.siteName}" (${outcome.siteDomain}, verified). ` +
-              "The page signs you in within a few seconds by itself.",
+              "The page signs you in within a few seconds by itself. " +
+              (outcome.sharedFields.length
+                ? `This site can receive: ${outcome.sharedFields.join(", ")}.`
+                : "This site receives none of the person's details."),
           },
         ],
       };

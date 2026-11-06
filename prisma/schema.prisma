@@ -98,6 +98,9 @@ model OAuthAuthorizationCode {
   redirectUri         String
   codeChallenge       String
   codeChallengeMethod String
+  // The person chose to replace this earlier connection: when the code is
+  // exchanged, its active grants move to the new agent and it's disconnected.
+  replacesAgentId     String?
   expiresAt           DateTime
   usedAt              DateTime?
   createdAt           DateTime    @default(now())
@@ -143,6 +146,10 @@ model Partner {
   domain                  String?
   domainVerificationToken String?
   domainVerifiedAt        DateTime?
+
+  // The profile details this site says it needs. /profile releases only
+  // fields that are both declared here and allowed by the person's grant.
+  declaredFields String[] @default([])
 
   // Safe to put in a browser-facing URL (unlike id/apiKeyHash semantics —
   // id already is, but this makes the "safe to expose" contract explicit
@@ -208,13 +215,33 @@ model AuditLog {
 // to a person's grant; the site then collects it, once, server-to-server.
 model SignInRequest {
   id          String    @id @default(uuid())
-  code        String    @unique
+  // SHA-256 of the code; the code itself is only ever returned to the site
+  // once, when it's issued, so a database leak exposes no live codes.
+  codeHash    String    @unique
   partnerId   String
   partner     Partner   @relation(fields: [partnerId], references: [id])
   grantId     String?
   grant       Grant?    @relation(fields: [grantId], references: [id])
   approvedAt  DateTime?
   collectedAt DateTime?
+  // Set when the person ends this sign-in from the Sign-ins screen; the
+  // credential issued for it carries this request's id and stops working.
+  endedAt     DateTime?
   expiresAt   DateTime
   createdAt   DateTime  @default(now())
+
+  @@index([grantId])
+}
+
+// Key pairs that sign agent credentials (ES256). Public halves are published
+// at /.well-known/jwks.json; private halves are stored encrypted with a key
+// derived from JWT_SECRET. Kept after retirement so credentials signed
+// earlier can still be checked until they expire.
+model SigningKey {
+  id                  String    @id // the JWT "kid"
+  algorithm           String
+  publicJwk           Json
+  privateKeyEncrypted String
+  createdAt           DateTime  @default(now())
+  retiredAt           DateTime?
 }

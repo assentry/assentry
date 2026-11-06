@@ -35,21 +35,20 @@ export function GrantsPanel({
   const [fields, setFields] = useState<string[]>(["name", "email"]);
   const [minutes, setMinutes] = useState(60);
   const [busy, setBusy] = useState(false);
-  const [issuedCredential, setIssuedCredential] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [authorised, setAuthorised] = useState(false);
 
   async function authorise(e: React.FormEvent) {
     e.preventDefault();
     if (!agentId) return;
     setBusy(true);
-    setIssuedCredential(null);
+    setAuthorised(false);
     try {
-      const data = await api.post<{ credential: string }>("/grants", {
+      await api.post("/grants", {
         agentId,
         consentedFields: fields,
         expiresInMinutes: Number(minutes),
       });
-      setIssuedCredential(data.credential);
+      setAuthorised(true);
       onChange();
     } finally {
       setBusy(false);
@@ -61,20 +60,13 @@ export function GrantsPanel({
     onChange();
   }
 
-  function copyCredential() {
-    if (!issuedCredential) return;
-    navigator.clipboard.writeText(issuedCredential);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
-
   return (
     <div className="space-y-6">
       <Card>
         <h2 className="mb-1 text-sm font-semibold text-white">Authorise an agent</h2>
         <p className="mb-4 text-sm text-slate-400">
-          Authorise an agent to act on your behalf, with only the data fields you choose, for a
-          bounded time. This is the consent record a participating site verifies — not a password.
+          Authorise an agent to act on your behalf, with only the details you choose, for a bounded time. This is
+          the permission participating sites check with Assentry. It isn&apos;t a password, and there&apos;s nothing to copy.
         </p>
 
         {activeAgents.length === 0 ? (
@@ -112,21 +104,11 @@ export function GrantsPanel({
           </form>
         )}
 
-        {issuedCredential && (
-          <div className="mt-4 rounded-lg border border-white/20 bg-white/5 p-4">
-            <p className="mb-2 text-sm font-medium text-neutral-200">
-              Credential issued — this is what the agent carries and presents. It won't be shown
-              again.
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 overflow-x-auto rounded bg-navy-950 px-2 py-1.5 text-xs text-slate-300">
-                {issuedCredential}
-              </code>
-              <Button variant="secondary" onClick={copyCredential} type="button">
-                {copied ? "Copied" : "Copy"}
-              </Button>
-            </div>
-          </div>
+        {authorised && (
+          <p className="mt-4 rounded-lg border border-white/20 bg-white/5 p-4 text-sm text-neutral-200">
+            Authorised. Your agent can now sign in to participating sites for you. Each site only gets the details it
+            asks for and you allowed here, and you can see and end every sign-in under Sign-ins.
+          </p>
         )}
       </Card>
 

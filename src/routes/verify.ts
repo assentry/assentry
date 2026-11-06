@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { pairwiseAgentId, pairwiseUserId } from "../lib/pairwise";
 import { prisma } from "../lib/prisma";
 import { PartnerRequest, requirePartner } from "../lib/partnerAuth";
 import { resolveGrant } from "../lib/resolveGrant";
@@ -11,52 +12,37 @@ const verifySchema = z.object({
   credential: z.string().min(1),
 });
 
-// This is the handshake described to design partners: a direct exchange
-// between the partner's SDK and Assentry's authorisation service. The agent
-// never injects credentials into a form — it only carries this token here.
+// The handshake between the partner's SDK and Assentry: is this credential
+// good for *this* site, right now? Returns IDs specific to this site's
+// developer (see lib/pairwise.ts), never Assentry's internal ones.
 verifyRouter.post("/", async (req: PartnerRequest, res) => {
   const parsed = verifySchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
-  const { credential } = parsed.data;
-  const partnerId = req.partner!.id;
+  const partner = req.partner!;
 
-  const resolution = await resolveGrant(credential);
-
-  if (!resolution.valid) {
-    await prisma.auditLog.create({
-      data: {
-        userId: resolution.user?.id ?? null,
-        agentId: resolution.agent?.id ?? null,
-        grantId: resolution.grant?.id ?? null,
-        partnerId,
-        action: "verify",
-        result: "denied",
-        reason: resolution.reason,
-        metadata: {},
-      },
-    });
-    return res.json({ valid: false, reason: resolution.reason });
-  }
+  const resolution = await resolveGrant(parsed.data.credential, partner);
 
   await prisma.auditLog.create({
     data: {
-      userId: resolution.user.id,
-      agentId: resolution.agent.id,
-      grantId: resolution.grant.id,
-      partnerId,
+      userId: resolution.user?.id ?? null,
+      agentId: resolution.agent?.id ?? null,
+      grantId: resolution.grant?.id ?? null,
+      partnerId: partner.id,
       action: "verify",
-      result: "allowed",
-      reason: "ok",
+      result: resolution.valid ? "allowed" : "denied",
+      reason: resolution.valid ? "ok" : resolution.reason,
       metadata: {},
     },
   });
 
+  if (!resolution.valid) return res.json({ valid: false, reason: resolution.reason });
+
   res.json({
     valid: true,
-    userId: resolution.user.id,
-    agentId: resolution.agent.id,
+    userId: pairwiseUserId(resolution.user.id, partner),
+    agentId: pairwiseAgentId(resolution.agent.id, partner),
     expiresAt: resolution.grant.expiresAt,
   });
 });

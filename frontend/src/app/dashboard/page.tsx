@@ -8,6 +8,7 @@ import { GrantsPanel } from "../../components/GrantsPanel";
 import { OverviewPanel } from "../../components/OverviewPanel";
 import { ProfilePanel } from "../../components/ProfilePanel";
 import { Sidebar, type Tab } from "../../components/Sidebar";
+import { SignInsPanel } from "../../components/SignInsPanel";
 import { api, clearToken, getToken } from "../../lib/api";
 import type { Agent, AuditLog, Grant, User } from "../../lib/types";
 
@@ -71,6 +72,7 @@ export default function DashboardPage() {
     profile: "Profile",
     agents: "Agents",
     grants: "Authorisations",
+    signins: "Sign-ins",
     audit: "Activity",
   };
 
@@ -92,6 +94,7 @@ export default function DashboardPage() {
               {tab === "profile" && <ProfilePanel accountEmail={user.email} />}
               {tab === "agents" && <AgentsPanel agents={agents} onChange={refreshAll} />}
               {tab === "grants" && <GrantsPanel agents={agents} grants={grants} onChange={refreshAll} />}
+              {tab === "signins" && <SignInsPanel />}
               {tab === "audit" && <AuditPanel logs={logs} />}
             </div>
           )}

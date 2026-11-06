@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../../lib/api";
 import { clearDevToken, devApi, getDevToken, type Developer, type DeveloperApp } from "../../lib/devApi";
+import { PROFILE_FIELDS } from "../../lib/profileFields";
 import { Badge, Button, Card, EmptyState, Input, Label } from "../ui";
 import { DevHeader } from "./DevHeader";
 
@@ -246,6 +247,31 @@ function AppCard({
   const [name, setName] = useState(app.name);
   const [domain, setDomain] = useState(app.domain ?? "");
   const [detailsNote, setDetailsNote] = useState<string | null>(null);
+  const [fields, setFields] = useState<string[]>(app.declaredFields);
+  const [fieldsNote, setFieldsNote] = useState<string | null>(null);
+  const fieldsChanged = [...fields].sort().join(",") !== [...app.declaredFields].sort().join(",");
+
+  function toggleField(key: string) {
+    setFields((f) => (f.includes(key) ? f.filter((k) => k !== key) : [...f, key]));
+    setFieldsNote(null);
+  }
+
+  async function saveFields(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setFieldsNote(null);
+    try {
+      const data = await devApi.patch<{ app: DeveloperApp }>(`/developer/apps/${app.id}`, { declaredFields: fields });
+      setFields(data.app.declaredFields);
+      setFieldsNote("Saved");
+      await onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
   const [verifyNote, setVerifyNote] = useState<string | null>(null);
   const detailsChanged = name.trim() !== app.name || domain.trim() !== (app.domain ?? "");
 
@@ -446,6 +472,37 @@ function AppCard({
             {domain.trim() !== (app.domain ?? "") && app.domainVerifiedAt && (
               <span className="text-xs text-amber-300">Changing the domain means verifying it again.</span>
             )}
+          </div>
+        </form>
+      )}
+
+      {!revoked && (
+        <form onSubmit={saveFields} className="mt-5 border-t border-white/5 pt-4">
+          <Label>Details this site needs</Label>
+          <p className="mb-3 text-xs text-slate-400">
+            Your site only ever receives details you tick here, and only if the person has also allowed them. Ask for
+            as little as you need.
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {PROFILE_FIELDS.map((f) => (
+              <label key={f.key} className="flex items-center gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={fields.includes(f.key)}
+                  onChange={() => toggleField(f.key)}
+                  className="h-4 w-4 accent-white"
+                />
+                {f.label}
+                <code className="text-xs text-slate-500">{f.key}</code>
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <Button type="submit" variant="secondary" disabled={busy || !fieldsChanged}>
+              Save details
+            </Button>
+            {fieldsNote && <span className="text-xs text-neutral-300">{fieldsNote}</span>}
+            {fields.length === 0 && <span className="text-xs text-amber-300">None ticked: the site gets no details.</span>}
           </div>
         </form>
       )}

@@ -45,16 +45,43 @@ oauthTokenRouter.post("/token", async (req, res) => {
 
   const accessToken = generateSecret("agent");
 
-  await prisma.$transaction([
-    prisma.oAuthAuthorizationCode.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.oAuthAuthorizationCode.update({
       where: { id: authCode.id },
       data: { usedAt: new Date() },
-    }),
-    prisma.agent.update({
+    });
+    await tx.agent.update({
       where: { id: authCode.agentId },
       data: { secretHash: hashSecret(accessToken) },
-    }),
-  ]);
+    });
+
+    // The person chose to replace an earlier connection: done only now that
+    // the new one is definitely working, so a failed connect never leaves
+    // them with nothing. Its live permissions move over (sites it's signed
+    // in to keep working), then the old connection is disconnected.
+    if (authCode.replacesAgentId) {
+      const old = await tx.agent.findFirst({
+        where: { id: authCode.replacesAgentId, userId: authCode.userId, revokedAt: null },
+      });
+      if (old) {
+        const moved = await tx.grant.updateMany({
+          where: { agentId: old.id, revokedAt: null, expiresAt: { gt: new Date() } },
+          data: { agentId: authCode.agentId },
+        });
+        await tx.agent.update({ where: { id: old.id }, data: { revokedAt: new Date() } });
+        await tx.auditLog.create({
+          data: {
+            userId: authCode.userId,
+            agentId: authCode.agentId,
+            action: "agent_replaced",
+            result: "allowed",
+            reason: "user_requested",
+            metadata: { replacedAgentId: old.id, movedGrants: moved.count },
+          },
+        });
+      }
+    }
+  });
 
   res.json({ access_token: accessToken, token_type: "Bearer" });
 });

@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { z } from "zod";
-import { issueCredential } from "../lib/credential";
 import { prisma } from "../lib/prisma";
 import { AuthedRequest, requireUser } from "../lib/userAuth";
 
@@ -13,10 +12,8 @@ const createGrantSchema = z.object({
   expiresInMinutes: z.number().int().positive().max(60 * 24 * 30), // cap at 30 days
 });
 
-// Issuing a grant is the consent act itself — the user authorising a
-// specific agent to do a specific thing, for a bounded time. The returned
-// `credential` is what the agent carries; it is never re-derivable later,
-// so the caller (consent UI) must hand it to the agent immediately.
+// Issuing a grant is the consent act itself: the person authorising a
+// specific agent to share specific details, for a bounded time.
 grantsRouter.post("/", async (req: AuthedRequest, res) => {
   const parsed = createGrantSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -41,11 +38,6 @@ grantsRouter.post("/", async (req: AuthedRequest, res) => {
     },
   });
 
-  const credential = issueCredential(
-    { grantId: grant.id, userId: grant.userId, agentId: grant.agentId },
-    expiresAt
-  );
-
   await prisma.auditLog.create({
     data: {
       userId: req.userId!,
@@ -58,7 +50,9 @@ grantsRouter.post("/", async (req: AuthedRequest, res) => {
     },
   });
 
-  res.status(201).json({ grant, credential });
+  // No credential here: the agent gets one per site, through its own
+  // Assentry connection, bound to that site's verified domain.
+  res.status(201).json({ grant });
 });
 
 grantsRouter.get("/", async (req: AuthedRequest, res) => {

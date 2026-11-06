@@ -34,3 +34,57 @@ meRouter.put("/profile", async (req: AuthedRequest, res) => {
   await prisma.user.update({ where: { id: req.userId! }, data: { profile } });
   res.json({ profile });
 });
+
+// The person's browser-agent sign-ins: which agent signed in to which site,
+// when, and whether it's still active. Ending one stops the credential
+// issued for it (it carries the sign-in's id) without touching the grant.
+meRouter.get("/sign-ins", async (req: AuthedRequest, res) => {
+  const rows = await prisma.signInRequest.findMany({
+    where: { grant: { userId: req.userId! }, collectedAt: { not: null } },
+    include: {
+      partner: { select: { name: true, domain: true } },
+      grant: { select: { id: true, revokedAt: true, expiresAt: true, agent: { select: { id: true, label: true, platform: true, revokedAt: true } } } },
+    },
+    orderBy: { collectedAt: "desc" },
+    take: 100,
+  });
+  const now = Date.now();
+  res.json({
+    signIns: rows.map((r) => ({
+      id: r.id,
+      site: { name: r.partner.name, domain: r.partner.domain },
+      agent: { id: r.grant!.agent.id, label: r.grant!.agent.label, platform: r.grant!.agent.platform },
+      signedInAt: r.collectedAt,
+      endedAt: r.endedAt,
+      active:
+        !r.endedAt &&
+        !r.grant!.revokedAt &&
+        !r.grant!.agent.revokedAt &&
+        r.grant!.expiresAt.getTime() > now,
+    })),
+  });
+});
+
+meRouter.post("/sign-ins/:id/end", async (req: AuthedRequest, res) => {
+  const signIn = await prisma.signInRequest.findFirst({
+    where: { id: req.params.id, grant: { userId: req.userId! } },
+    include: { grant: true },
+  });
+  if (!signIn || !signIn.grant) return res.status(404).json({ error: "sign-in not found" });
+  if (!signIn.endedAt) {
+    await prisma.signInRequest.update({ where: { id: signIn.id }, data: { endedAt: new Date() } });
+    await prisma.auditLog.create({
+      data: {
+        userId: req.userId!,
+        agentId: signIn.grant.agentId,
+        grantId: signIn.grant.id,
+        partnerId: signIn.partnerId,
+        action: "sign_in_ended",
+        result: "allowed",
+        reason: "user_requested",
+        metadata: { signInId: signIn.id },
+      },
+    });
+  }
+  res.json({ ok: true });
+});

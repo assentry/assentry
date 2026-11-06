@@ -1,12 +1,14 @@
-import { Agent, Grant, User } from "@prisma/client";
+import { Agent, Grant, Partner, User } from "@prisma/client";
 import { decodeCredential } from "./credential";
 import { prisma } from "./prisma";
 
 export type GrantDenialReason =
   | "invalid_credential"
+  | "wrong_site"
   | "grant_not_found"
   | "revoked"
   | "agent_revoked"
+  | "sign_in_ended"
   | "expired";
 
 export type GrantResolution =
@@ -22,12 +24,15 @@ export type GrantResolution =
     };
 
 // The one place that decides whether a presented credential is currently
-// good. Deliberately re-checks the database every time rather than trusting
-// the signed token alone — the token proves the grant *was* issued, the
-// database row is the only source of truth on whether it still holds.
-// This is what makes verification independent of whatever the agent claims.
-export async function resolveGrant(credential: string): Promise<GrantResolution> {
-  const payload = decodeCredential(credential);
+// good *for the site asking*. Re-checks the database every time rather than
+// trusting the signed token alone: the token proves the grant was issued
+// for this site; the database is the only source of truth on whether it
+// still holds.
+export async function resolveGrant(
+  credential: string,
+  partner: Pick<Partner, "domain" | "domainVerifiedAt">
+): Promise<GrantResolution> {
+  const payload = await decodeCredential(credential);
   if (!payload) return { valid: false, reason: "invalid_credential" };
 
   const grant = await prisma.grant.findUnique({
@@ -35,15 +40,22 @@ export async function resolveGrant(credential: string): Promise<GrantResolution>
     include: { agent: true, user: true },
   });
   if (!grant) return { valid: false, reason: "grant_not_found" };
-
   const { agent, user } = grant;
 
-  if (grant.revokedAt) return { valid: false, reason: "revoked", grant, agent, user };
-  if (agent.revokedAt) {
-    return { valid: false, reason: "agent_revoked", grant, agent, user };
+  // Credentials are issued for one site's verified domain; any other site
+  // presenting it (e.g. replaying one it collected) is refused.
+  if (!partner.domainVerifiedAt || payload.site !== partner.domain) {
+    return { valid: false, reason: "wrong_site", grant, agent, user };
   }
-  if (grant.expiresAt.getTime() < Date.now()) {
-    return { valid: false, reason: "expired", grant, agent, user };
+  if (grant.revokedAt) return { valid: false, reason: "revoked", grant, agent, user };
+  if (agent.revokedAt) return { valid: false, reason: "agent_revoked", grant, agent, user };
+  if (grant.expiresAt.getTime() < Date.now()) return { valid: false, reason: "expired", grant, agent, user };
+
+  if (payload.signInId) {
+    const signIn = await prisma.signInRequest.findUnique({ where: { id: payload.signInId } });
+    if (!signIn || signIn.grantId !== grant.id || signIn.endedAt) {
+      return { valid: false, reason: "sign_in_ended", grant, agent, user };
+    }
   }
 
   return { valid: true, grant, agent, user };

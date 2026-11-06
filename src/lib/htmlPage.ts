@@ -26,6 +26,9 @@ export function page(title: string, body: string): string {
   .deny { background: #fff; color: #475569; border: 1px solid #cbd5e1; margin-left: 8px; }
   .error { color: #dc2626; font-size: 0.85rem; margin-top: 8px; }
   p.hint { color: #64748b; font-size: 0.85rem; }
+  label.choice { display: flex; gap: 8px; align-items: flex-start; color: #0f172a; font-size: 0.85rem; margin-top: 8px; }
+  label.choice input { width: auto; margin-top: 3px; }
+  .muted { color: #64748b; }
 </style></head>
 <body>
   <div class="brand"><div class="mark">H</div><div class="name">Assentry</div></div>

@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { issueCredential } from "./credential";
 import { normaliseDomain } from "./domain";
+import { pairwiseAgentId, pairwiseUserId } from "./pairwise";
 import { prisma } from "./prisma";
 
 // Codes are copied by agents, never typed by people, so they're long and
@@ -24,6 +25,11 @@ function randomCode(): string {
   return PREFIX + out;
 }
 
+/** Only this fingerprint is stored, so a database leak exposes no live codes. */
+function hashCode(code: string): string {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
+
 /** Normalises what an agent passes in: case, spaces, dashes, a missing prefix. */
 export function normaliseCode(input: string): string {
   const body = input.toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^ASQ/, "");
@@ -39,10 +45,13 @@ export async function startSignIn(partnerId: string) {
   if (!partner?.domain || !partner.domainVerifiedAt) throw new SiteNotVerifiedError();
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
-      return await prisma.signInRequest.create({
-        data: { code: randomCode(), partnerId, expiresAt: new Date(Date.now() + SIGN_IN_TTL_MS) },
-        select: { id: true, code: true, expiresAt: true },
+      const code = randomCode();
+      const created = await prisma.signInRequest.create({
+        data: { codeHash: hashCode(code), partnerId, expiresAt: new Date(Date.now() + SIGN_IN_TTL_MS) },
+        select: { id: true, expiresAt: true },
       });
+      // The only time the plain code exists outside the agent's hands.
+      return { ...created, code };
     } catch (err) {
       // Unique-code collision: try a fresh one.
       if ((err as { code?: string }).code !== "P2002") throw err;
@@ -52,7 +61,7 @@ export async function startSignIn(partnerId: string) {
 }
 
 export type ApproveOutcome =
-  | { ok: true; siteName: string; siteDomain: string }
+  | { ok: true; siteName: string; siteDomain: string; sharedFields: string[] }
   | { ok: false; error: "domain_mismatch"; codeDomain: string }
   | {
       ok: false;
@@ -78,8 +87,10 @@ export async function approveSignIn(
   grantId?: string
 ): Promise<ApproveOutcome> {
   const request = await prisma.signInRequest.findUnique({
-    where: { code: normaliseCode(rawCode) },
-    include: { partner: { select: { name: true, revokedAt: true, domain: true, domainVerifiedAt: true } } },
+    where: { codeHash: hashCode(normaliseCode(rawCode)) },
+    include: {
+      partner: { select: { name: true, revokedAt: true, domain: true, domainVerifiedAt: true, declaredFields: true } },
+    },
   });
   if (!request || request.partner.revokedAt || !request.partner.domain || !request.partner.domainVerifiedAt) {
     return { ok: false, error: "code_not_found" };
@@ -123,11 +134,13 @@ export async function approveSignIn(
       action: "sign_in_approved",
       result: "allowed",
       reason: "ok",
-      metadata: { code: request.code },
+      metadata: { signInId: request.id },
     },
   });
 
-  return { ok: true, siteName: request.partner.name, siteDomain: request.partner.domain };
+  // What this site can receive: only what it declared AND the person allowed.
+  const sharedFields = request.partner.declaredFields.filter((f) => grant.consentedFields.includes(f));
+  return { ok: true, siteName: request.partner.name, siteDomain: request.partner.domain, sharedFields };
 }
 
 export type CollectOutcome =
@@ -140,9 +153,9 @@ export type CollectOutcome =
 export async function collectSignIn(partnerId: string, requestId: string): Promise<CollectOutcome> {
   const request = await prisma.signInRequest.findFirst({
     where: { id: requestId, partnerId },
-    include: { grant: { include: { agent: true } } },
+    include: { grant: { include: { agent: true } }, partner: true },
   });
-  if (!request) return { status: "not_found" };
+  if (!request || !request.partner.domain || !request.partner.domainVerifiedAt) return { status: "not_found" };
   if (request.collectedAt) return { status: "already_collected" };
   if (!request.approvedAt || !request.grant) {
     return request.expiresAt.getTime() < Date.now()
@@ -176,8 +189,9 @@ export async function collectSignIn(partnerId: string, requestId: string): Promi
   });
   if (claimed.count === 0) return { status: "already_collected" };
 
-  const credential = issueCredential(
-    { grantId: grant.id, userId: grant.userId, agentId: grant.agentId },
+  // Bound to this site's domain, and to this sign-in so the person can end it on its own.
+  const credential = await issueCredential(
+    { grantId: grant.id, site: request.partner.domain, signInId: request.id },
     grant.expiresAt
   );
   await prisma.auditLog.create({
@@ -193,5 +207,11 @@ export async function collectSignIn(partnerId: string, requestId: string): Promi
     },
   });
 
-  return { status: "approved", credential, userId: grant.userId, agentId: grant.agentId, expiresAt: grant.expiresAt };
+  return {
+    status: "approved",
+    credential,
+    userId: pairwiseUserId(grant.userId, request.partner),
+    agentId: pairwiseAgentId(grant.agentId, request.partner),
+    expiresAt: grant.expiresAt,
+  };
 }

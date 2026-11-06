@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { sessionKeys } from "./keys";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
 export const OAUTH_SESSION_COOKIE = "assentry_oauth_session";
 
 // A short-lived browser session for the /oauth/authorize login+consent
@@ -9,12 +9,12 @@ export const OAUTH_SESSION_COOKIE = "assentry_oauth_session";
 // session (lib/userAuth.ts) — this one lives in a cookie because it has to
 // survive a plain HTML form POST and a redirect, not a fetch() call.
 export function signOAuthSession(userId: string): string {
-  return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "15m" });
+  return jwt.sign({ sub: userId }, sessionKeys.oauthBrowser, { expiresIn: "15m" });
 }
 
 export function verifyOAuthSession(token: string): string | null {
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { sub?: string; kind?: string };
+    const payload = jwt.verify(token, sessionKeys.oauthBrowser, { algorithms: ["HS256"] }) as { sub?: string; kind?: string };
     // Developer sessions (kind: "developer") are never end-user sessions.
     if (typeof payload.sub !== "string" || payload.kind !== undefined) return null;
     return payload.sub;
