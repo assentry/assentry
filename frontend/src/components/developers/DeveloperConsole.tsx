@@ -40,6 +40,41 @@ function errorMessage(err: unknown) {
   return err instanceof ApiError ? err.message : "Something went wrong";
 }
 
+// ---- What was loaded last time, for this browser tab ----
+
+interface ConsoleCache {
+  developer?: Developer;
+  apps?: DeveloperApp[];
+}
+const CACHE_KEY = "assentry_console_cache";
+
+function readCache(): Required<ConsoleCache> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const c = JSON.parse(sessionStorage.getItem(CACHE_KEY) ?? "null") as ConsoleCache | null;
+    return c?.developer && c.apps ? { developer: c.developer, apps: c.apps } : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(patch: ConsoleCache) {
+  try {
+    const current = JSON.parse(sessionStorage.getItem(CACHE_KEY) ?? "{}") as ConsoleCache;
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ...current, ...patch }));
+  } catch {
+    // Storage full or disabled: the console just loads from the server.
+  }
+}
+
+function clearCache() {
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 // ---- Navigation ----
 // The console's place is kept in the URL (?view=new, ?app=<id>&section=domain)
 // so every page can be linked to and the back button works.
@@ -70,7 +105,6 @@ type View =
 
 function useConsoleView(): [View, (v: View) => void] {
   const params = useSearchParams();
-  const router = useRouter();
   const pathname = usePathname();
   const appId = params.get("app");
   const docs = params.get("docs");
@@ -91,12 +125,15 @@ function useConsoleView(): [View, (v: View) => void] {
       } else if (v.kind === "new") q.set("view", "new");
       else if (v.kind === "docs") q.set("docs", v.section);
       const qs = q.toString();
-      // Moving between doc sections shouldn't pile up history entries.
       const url = `${pathname}${qs ? `?${qs}` : ""}`;
-      if (v.kind === "docs" && docs) router.replace(url, { scroll: false });
-      else router.push(url);
+      // Changing the URL with the browser's own history API keeps navigation
+      // entirely in the browser: no request to the server, nothing reloads.
+      // (useSearchParams still sees the change.) Moving between doc sections
+      // replaces the entry rather than piling up history.
+      if (v.kind === "docs" && docs) window.history.replaceState(null, "", url);
+      else window.history.pushState(null, "", url);
     },
-    [router, pathname, docs]
+    [pathname, docs]
   );
   return [view, go];
 }
@@ -104,9 +141,11 @@ function useConsoleView(): [View, (v: View) => void] {
 export function DeveloperConsole() {
   const router = useRouter();
   const [view, go] = useConsoleView();
-  const [developer, setDeveloper] = useState<Developer | null>(null);
-  const [apps, setApps] = useState<DeveloperApp[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Show the console straight away from what was loaded last time (this tab),
+  // then refresh it from the server.
+  const [developer, setDeveloper] = useState<Developer | null>(() => readCache()?.developer ?? null);
+  const [apps, setApps] = useState<DeveloperApp[]>(() => readCache()?.apps ?? []);
+  const [loading, setLoading] = useState(() => !readCache());
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<RevealedKey | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -119,6 +158,7 @@ export function DeveloperConsole() {
   const loadApps = useCallback(async () => {
     const data = await devApi.get<{ apps: DeveloperApp[] }>("/developer/apps");
     setApps(data.apps);
+    writeCache({ apps: data.apps });
   }, []);
 
   useEffect(() => {
@@ -130,9 +170,11 @@ export function DeveloperConsole() {
       try {
         const me = await devApi.get<{ developer: Developer }>("/developer/auth/me");
         setDeveloper(me.developer);
+        writeCache({ developer: me.developer });
         await loadApps();
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
+          clearCache();
           clearDevToken();
           router.replace("/developers/login");
           return;
@@ -150,12 +192,40 @@ export function DeveloperConsole() {
   }, [view.kind, view.kind === "app" ? view.id + view.section : ""]);
 
   function logOut() {
+    clearCache();
     clearDevToken();
     router.push("/developers/login");
   }
 
-  if (loading || !developer) {
-    return <div className="min-h-screen bg-navy-950 px-6 py-16 text-sm text-slate-400">{error ?? "Loading your console…"}</div>;
+  if (!developer) {
+    // First visit in this tab: the console's frame, with placeholders, until the server answers.
+    return (
+      <div className="flex min-h-screen bg-navy-950">
+        <aside className="hidden h-screen w-72 shrink-0 flex-col border-r border-white/10 bg-navy-900 px-4 py-6 lg:flex">
+          <div className="mb-8 px-2">
+            <ConsoleBrand />
+          </div>
+          <div className="space-y-2 px-1">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-8 animate-pulse rounded-lg bg-white/5" />
+            ))}
+          </div>
+        </aside>
+        <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-8">
+          {error ? (
+            <p className="text-sm text-rose-300">{error}</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="h-8 w-48 animate-pulse rounded-lg bg-white/5" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="h-28 animate-pulse rounded-2xl bg-white/5" />
+                <div className="h-28 animate-pulse rounded-2xl bg-white/5" />
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    );
   }
 
   const app = view.kind === "app" ? apps.find((a) => a.id === view.id) : undefined;
@@ -230,6 +300,8 @@ export function DeveloperConsole() {
                   await loadApps();
                 }}
               />
+            ) : loading ? (
+              <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
             ) : (
               <Card>
                 <EmptyState>That app doesn&apos;t exist, or isn&apos;t yours.</EmptyState>
