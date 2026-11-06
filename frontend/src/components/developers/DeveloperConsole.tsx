@@ -1300,8 +1300,8 @@ function DeclaredFieldsEditor({ app, onSaved }: { app: DeveloperApp; onSaved: ()
       </button>
 
       <div className="mt-3 flex items-center gap-3">
-        <Button type="button" variant="secondary" onClick={save} disabled={busy || !changed}>
-          Save required data
+        <Button type="button" variant="success" onClick={save} disabled={busy || !changed}>
+          {busy ? "Saving…" : "Save required data"}
         </Button>
         {note && <span className={`text-xs ${note.ok ? "text-neutral-300" : "text-rose-400"}`}>{note.text}</span>}
         {Object.keys(picked).length + custom.length === 0 && (

@@ -12,13 +12,15 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   );
 }
 
-type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "success" | "danger" | "ghost";
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary:
     "bg-gradient-to-br from-white to-neutral-400 text-navy-950 shadow-sm shadow-black/40 hover:shadow-md hover:shadow-black/40 hover:brightness-105 focus-visible:outline-neutral-400",
   secondary:
     "border border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 focus-visible:outline-white/40",
+  success:
+    "bg-emerald-500 text-white shadow-sm shadow-black/40 hover:bg-emerald-400 focus-visible:outline-emerald-400",
   danger: "border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 focus-visible:outline-rose-400",
   ghost: "text-slate-300 hover:bg-white/5",
 };
