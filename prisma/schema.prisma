@@ -65,6 +65,7 @@ model Grant {
   createdAt       DateTime  @default(now())
 
   auditLogs AuditLog[]
+  signInRequests SignInRequest[]
 
   @@index([userId])
   @@index([agentId])
@@ -146,6 +147,7 @@ model Partner {
 
   auditLogs AuditLog[]
   accountLinkCodes AccountLinkCode[]
+  signInRequests SignInRequest[]
 }
 
 // Case 2 from STRATEGY.md's "what 'the agent logs in' actually means":
@@ -188,4 +190,22 @@ model AuditLog {
 
   @@index([userId])
   @@index([agentId])
+}
+
+// A browser agent signing in to a participating site without ever handing the
+// site its credential. The site (with its API key) asks for a request and
+// shows the short code; the agent approves that code through its own
+// Assentry connection (MCP approve_sign_in), which is what ties the request
+// to a person's grant; the site then collects it, once, server-to-server.
+model SignInRequest {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  partnerId   String
+  partner     Partner   @relation(fields: [partnerId], references: [id])
+  grantId     String?
+  grant       Grant?    @relation(fields: [grantId], references: [id])
+  approvedAt  DateTime?
+  collectedAt DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
 }

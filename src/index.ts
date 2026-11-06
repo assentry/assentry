@@ -14,6 +14,7 @@ import { oauthClientsRouter } from "./routes/oauthClients";
 import { oauthMetaRouter } from "./routes/oauthMeta";
 import { oauthTokenRouter } from "./routes/oauthToken";
 import { profileRouter } from "./routes/profile";
+import { signInRouter } from "./routes/signIn";
 import { meRouter } from "./routes/me";
 import { verifyRouter } from "./routes/verify";
 
@@ -42,6 +43,7 @@ app.use("/me", meRouter);
 // Partner-facing (business SDK), API-key authenticated.
 app.use("/verify", verifyRouter);
 app.use("/profile", profileRouter);
+app.use("/sign-in-requests", signInRouter);
 
 // Developer console: developer accounts and the partner apps/API keys they
 // own. Separate session type from the personal app's.
