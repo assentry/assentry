@@ -54,7 +54,7 @@ function hiddenOAuthFields(params: {
 
 // Entry point an MCP client sends a person's browser to. Validates the
 // request, then shows a login form (no session cookie yet) or the consent
-// screen (session cookie present) — this *is* the "Connect" experience: no
+// screen (session cookie present), this *is* the "Connect" experience: no
 // key ever appears on screen for the end user to copy.
 oauthAuthorizeRouter.get("/authorize", async (req, res) => {
   const parsed = authorizeQuerySchema.safeParse(req.query);
@@ -192,7 +192,7 @@ const consentBodySchema = z.object({
 });
 
 // The actual consent decision. Re-validates client_id/redirect_uri against
-// the database rather than trusting the hidden form fields alone — a
+// the database rather than trusting the hidden form fields alone, a
 // tampered form can't redirect anywhere other than an address this specific
 // client actually registered.
 oauthAuthorizeRouter.post("/authorize", async (req, res) => {
@@ -215,7 +215,7 @@ oauthAuthorizeRouter.post("/authorize", async (req, res) => {
 
   const userId = await getBrowserSessionUserId(req);
   if (!userId) {
-    return res.status(401).send(page("Session expired", "<p>Your session expired — go back and log in again.</p>"));
+    return res.status(401).send(page("Session expired", "<p>Your session expired. Go back and log in again.</p>"));
   }
 
   // Only an active connection of this same person can be replaced.

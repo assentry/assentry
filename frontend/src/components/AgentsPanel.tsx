@@ -20,7 +20,7 @@ const PLATFORM_COLORS: Record<Platform, string> = {
   other: "bg-white/10 text-neutral-300",
 };
 
-// The address a person's AI connects to — not a secret. The frontend is now
+// The address a person's AI connects to, not a secret. The frontend is now
 // its own deployment (a different origin from the Assentry backend), so the
 // backend's address always has to be configured explicitly via
 // NEXT_PUBLIC_API_BASE_URL rather than inferred from window.location.
@@ -35,14 +35,14 @@ const CONNECT_PROVIDERS: Record<
   claude: {
     label: "Claude",
     // Verified, documented deep link (Anthropic): pre-fills the "Add custom
-    // connector" dialog with the name and URL already entered — the person
+    // connector" dialog with the name and URL already entered, the person
     // only has to review and click Add.
     connectUrl: (mcpUrl) =>
       `https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Assentry&connectorUrl=${encodeURIComponent(mcpUrl)}`,
   },
   chatgpt: {
     // No public deep-link/prefill exists for ChatGPT's custom connectors
-    // today — only a manual Settings > Connectors > Create flow. We still
+    // today, only a manual Settings > Connectors > Create flow. We still
     // remove the error-prone part (retyping the URL) with a copy button.
     label: "ChatGPT",
     settingsUrl: "https://chatgpt.com/",
@@ -79,7 +79,7 @@ export function AgentsPanel({ agents, onChange }: { agents: Agent[]; onChange: (
         <h2 className="mb-1 text-sm font-semibold text-white">Connect an agent</h2>
         <p className="mb-4 text-sm text-slate-400">
           {config.connectUrl
-            ? "Choose your AI, then click connect — it opens with everything already filled in. Just review and confirm."
+            ? "Choose your AI, then click connect. It opens with everything already filled in. Just review and confirm."
             : "Choose your AI. This platform doesn't yet support one-click setup, so we'll copy the address for you to paste in."}
         </p>
 

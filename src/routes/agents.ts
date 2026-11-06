@@ -15,7 +15,7 @@ const agentListFields = {
 } as const;
 
 // Agents are created exclusively through the OAuth consent flow
-// (routes/oauthAuthorize.ts) — that approval *is* "connecting an agent".
+// (routes/oauthAuthorize.ts), that approval *is* "connecting an agent".
 // This router only lists and revokes what already exists; there is no
 // manual "create an agent" path, so no secret is ever generated or shown
 // here for a human to copy.
@@ -39,7 +39,7 @@ agentsRouter.post("/:id/revoke", async (req: AuthedRequest, res) => {
       where: { id: agent.id },
       data: { revokedAt: new Date() },
     }),
-    // Revoking the agent connection must also kill every grant it holds —
+    // Revoking the agent connection must also kill every grant it holds -
     // otherwise a disconnected agent could still present a live credential.
     prisma.grant.updateMany({
       where: { agentId: agent.id, revokedAt: null },

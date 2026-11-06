@@ -23,7 +23,7 @@ import { verifyRouter } from "./routes/verify";
 
 const app = express();
 // So req.protocol reports "https" correctly when running behind a tunnel
-// (ngrok, a real reverse proxy) that terminates TLS and forwards plain HTTP —
+// (ngrok, a real reverse proxy) that terminates TLS and forwards plain HTTP -
 // otherwise the OAuth discovery metadata would advertise http:// endpoints.
 app.set("trust proxy", true);
 app.use(cors());
@@ -67,7 +67,7 @@ app.get("/.well-known/jwks.json", async (_req, res, next) => {
 app.use("/developer", developerRouter);
 
 // OAuth: lets an MCP client (Claude, etc.) connect without a human ever
-// handling a key — discovery metadata, dynamic client registration, the
+// handling a key, discovery metadata, dynamic client registration, the
 // login/consent screens, and token exchange.
 app.use(oauthMetaRouter);
 app.use("/oauth", oauthClientsRouter);
@@ -78,7 +78,7 @@ app.use("/oauth", oauthTokenRouter);
 // the OAuth exchange above.
 app.use("/mcp", mcpHttpRouter);
 
-// Account linking (case 2 — see STRATEGY.md): a partner's already-logged-in
+// Account linking (case 2. See STRATEGY.md): a partner's already-logged-in
 // human confirms their Assentry identity matches an existing account there.
 app.use("/link", linkRouter);
 

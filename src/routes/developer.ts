@@ -164,7 +164,7 @@ apps.post("/", async (req: DeveloperRequest, res) => {
   res.status(201).json({ app: await prisma.partner.findUnique({ where: { id: app.id }, select: appSelect }), apiKey });
 });
 
-// Replaces the key outright — the old one stops working on the next request.
+// Replaces the key outright, the old one stops working on the next request.
 apps.post("/:id/rotate", async (req: DeveloperRequest, res) => {
   const existing = await findOwnApp(req.developerId!, req.params.id);
   if (!existing) return res.status(404).json({ error: "app not found" });
@@ -191,7 +191,7 @@ apps.post("/:id/revoke", async (req: DeveloperRequest, res) => {
   res.json({ app });
 });
 
-// Account-linking redirect URIs (see /link/authorize) — validated against
+// Account-linking redirect URIs (see /link/authorize), validated against
 // exactly this list, so they have to be registered before linking works.
 // Name, domain and account-linking redirect URIs (see /link/authorize).
 // Changing the domain drops its verification, since it's a different site.

@@ -1,5 +1,5 @@
 // Shared shell for every server-rendered, human-facing page in the OAuth
-// and account-linking flows — these have to survive a plain browser
+// and account-linking flows, these have to survive a plain browser
 // redirect/form-post, so they're not part of the React app.
 export function escapeHtml(value: string): string {
   return value

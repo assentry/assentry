@@ -14,7 +14,7 @@ const tokenSchema = z.object({
   code_verifier: z.string(),
 });
 
-// Exchanges the one-time code from the consent screen for a bearer token —
+// Exchanges the one-time code from the consent screen for a bearer token -
 // this is the only place a secret is ever generated in this flow, and it
 // goes straight from server to client, never through the person's screen.
 oauthTokenRouter.post("/token", async (req, res) => {

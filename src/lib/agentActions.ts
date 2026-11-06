@@ -11,7 +11,7 @@ export interface AgentGrantSummary {
 
 // Shared by the REST /agent/* routes (used by the local connector) and the
 // hosted MCP server's tool handlers (used by the real OAuth-connected
-// client) — both are the same capability, just reached over a different
+// client), both are the same capability, just reached over a different
 // transport, so the business logic lives in exactly one place.
 export async function listGrantsForAgent(agentId: string): Promise<AgentGrantSummary[]> {
   return prisma.grant.findMany({

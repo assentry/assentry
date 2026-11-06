@@ -5,7 +5,7 @@ import { buildMcpServerForAgent } from "../mcp/buildServer";
 
 // The remote connector: an MCP client (Claude, etc.) that completed the
 // OAuth flow talks to this over HTTP using its bearer access token.
-// Stateless — a fresh server+transport pair per request, scoped to
+// Stateless, a fresh server+transport pair per request, scoped to
 // whichever agent the token resolved to.
 export const mcpHttpRouter = Router();
 mcpHttpRouter.use(requireAgentKey);

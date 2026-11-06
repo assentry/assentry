@@ -550,7 +550,7 @@ function RevealedKeyNotice({ revealed, onDismiss }: { revealed: RevealedKey; onD
       </p>
       <div className="mt-4">
         <Button variant="ghost" onClick={onDismiss} type="button">
-          I&apos;ve stored it — dismiss
+          I&apos;ve stored it, dismiss
         </Button>
       </div>
     </div>
@@ -749,7 +749,7 @@ function OverviewSection({ app, go, onRotated }: { app: DeveloperApp; go: (v: Vi
         <h3 className="mb-3 text-sm font-semibold text-white">Keys</h3>
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[9rem_1fr]">
           <Field label="API key">
-            <span className="font-mono">{app.apiKeyPreview ?? "—"}</span>
+            <span className="font-mono">{app.apiKeyPreview ?? "-"}</span>
             <span className="block text-xs text-slate-500">Secret. Only shown in full when created or rotated.</span>
           </Field>
           <Field label="Public ID">

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Assentry — The Trust Infrastructure for the Agentic Internet",
+  title: "Assentry: The Trust Infrastructure for the Agentic Internet",
   description:
-    "Assentry connects people, AI agents and websites through a trusted identity and authorisation layer — making it possible for AI to act on your behalf while you remain in control.",
+    "Assentry connects people, AI agents and websites through a trusted identity and authorisation layer, making it possible for AI to act on your behalf while you remain in control.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

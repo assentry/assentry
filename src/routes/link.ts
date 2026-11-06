@@ -11,7 +11,7 @@ import { prisma } from "../lib/prisma";
 // one-time, human-driven confirmation that an Assentry user is the same person
 // as an existing account on a participating site. Unlike the agent
 // connector's public-client PKCE flow, the partner is a confidential
-// client — it already holds an API key for server-to-server use, so the
+// client, it already holds an API key for server-to-server use, so the
 // code exchange is authenticated with that instead of PKCE.
 export const linkRouter = Router();
 
@@ -70,7 +70,7 @@ linkRouter.get("/authorize", async (req, res) => {
   res.send(
     page(
       "Confirm your identity",
-      `<p class="hint"><strong>${escapeHtml(partner.name)}</strong> wants to confirm that your account there belongs to you. This doesn't grant any new permission — it just links your existing account to your Assentry identity.</p>
+      `<p class="hint"><strong>${escapeHtml(partner.name)}</strong> wants to confirm that your account there belongs to you. This doesn't grant any new permission. It just links your existing account to your Assentry identity.</p>
       <form method="post" action="/link/authorize">
         ${hidden}
         <button class="approve" type="submit" name="decision" value="approve">Confirm</button>
@@ -149,7 +149,7 @@ linkRouter.post("/authorize", async (req, res) => {
 
   const userId = getBrowserSessionUserId(req);
   if (!userId) {
-    return res.status(401).send(page("Session expired", "<p>Your session expired — go back and log in again.</p>"));
+    return res.status(401).send(page("Session expired", "<p>Your session expired. Go back and log in again.</p>"));
   }
 
   const code = generateAuthorizationCode();

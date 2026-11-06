@@ -59,7 +59,7 @@ export function OverviewPanel({
       <Card>
         <h2 className="mb-4 text-sm font-semibold text-white">Recent activity</h2>
         {recentLogs.length === 0 ? (
-          <EmptyState>Nothing's happened yet — connect and authorise an agent to get started.</EmptyState>
+          <EmptyState>Nothing's happened yet. Connect and authorise an agent to get started.</EmptyState>
         ) : (
           <ul className="divide-y divide-white/10">
             {recentLogs.map((log) => (

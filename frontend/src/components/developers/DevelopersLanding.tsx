@@ -17,7 +17,7 @@ const FEATURES = [
   {
     icon: Radar,
     title: "Discoverable from any page",
-    body: "Agents find your Assentry-enabled routes automatically — no human login wall to get stuck behind.",
+    body: "Agents find your Assentry-enabled routes automatically, with no human login wall to get stuck behind.",
   },
 ];
 
@@ -33,12 +33,12 @@ export function DevelopersLanding() {
           For developers
         </p>
         <h1 className="mt-5 max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-5xl">
-          Let AI agents into your website — with the person&apos;s permission.
+          Let AI agents into your website, with the person&apos;s permission.
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-300">
           Assentry is identity and authorisation infrastructure connecting people, their AI agents and your
           website. Install the SDK, protect a route, and your site can verify who an agent represents and
-          what it&apos;s been authorised to share — without ever handling a user&apos;s password.
+          what it&apos;s been authorised to share, without ever handling a user&apos;s password.
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -78,7 +78,7 @@ export function DevelopersLanding() {
                 the console.
               </li>
               <li>
-                <span className="mr-2 font-mono text-neutral-300">2</span>Copy your API key — store it as a server
+                <span className="mr-2 font-mono text-neutral-300">2</span>Copy your API key and store it as a server
                 secret.
               </li>
               <li>

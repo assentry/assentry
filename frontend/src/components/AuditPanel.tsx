@@ -27,8 +27,8 @@ export function AuditPanel({ logs }: { logs: AuditLog[] }) {
                   <td className="py-2 pr-4">
                     <Badge tone={log.result === "allowed" ? "success" : "danger"}>{log.result}</Badge>
                   </td>
-                  <td className="py-2 pr-4 text-slate-500">{log.reason ?? "—"}</td>
-                  <td className="py-2 text-slate-500">{log.partner?.name ?? "—"}</td>
+                  <td className="py-2 pr-4 text-slate-500">{log.reason ?? "-"}</td>
+                  <td className="py-2 text-slate-500">{log.partner?.name ?? "-"}</td>
                 </tr>
               ))}
             </tbody>

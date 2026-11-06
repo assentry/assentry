@@ -6,7 +6,7 @@ export interface AgentApiRequest extends Request {
   agent?: { id: string; userId: string };
 }
 
-// Authenticates the connector running inside a user's AI — distinct from
+// Authenticates the connector running inside a user's AI, distinct from
 // requireUser (the human's session) and requirePartner (a business's API
 // key). The bearer token here is always OAuth-issued (see routes/oauthToken.ts);
 // nothing in this system ever shows this value to a human to type or paste.

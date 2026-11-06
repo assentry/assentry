@@ -7,7 +7,7 @@ export interface UserSession {
   sub: string; // userId
   // Absent on end-user sessions (including every token issued before
   // developer accounts existed). Developer sessions set this to
-  // "developer" and are rejected here — see lib/developerAuth.ts.
+  // "developer" and are rejected here. See lib/developerAuth.ts.
   kind?: string;
 }
 
@@ -22,7 +22,7 @@ export interface AuthedRequest extends Request {
 }
 
 // Session auth for the personal app (consent UI). Deliberately separate
-// from the partner/credential verification path below — these are two
+// from the partner/credential verification path below, these are two
 // different trust boundaries and must not share a code path.
 export function requireUser(
   req: AuthedRequest,

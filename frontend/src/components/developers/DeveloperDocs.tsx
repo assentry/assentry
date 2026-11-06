@@ -162,7 +162,7 @@ const DISCOVERY_DOC = `{
 const LINKING_CODE = `const assentry = new Assentry({
   apiKey: process.env.ASSENTRY_API_KEY!,
   baseUrl: "${BASE_URL}",
-  partnerId: process.env.ASSENTRY_PARTNER_PUBLIC_ID!, // your app's Public ID — safe to expose
+  partnerId: process.env.ASSENTRY_PARTNER_PUBLIC_ID!, // your app's Public ID, safe to expose
 });
 
 // 1. Your already-logged-in user clicks "Link my Assentry account".
@@ -231,8 +231,8 @@ export function DocsArticle() {
           <p className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Assentry developer documentation</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Accept AI agents on your website</h1>
           <p className="mt-4 text-lg leading-relaxed text-slate-300">
-            Assentry lets your site recognise an AI agent acting on behalf of a real, consenting person — and
-            pull only the profile data that person agreed to share — without the agent ever touching a
+            Assentry lets your site recognise an AI agent acting on behalf of a real, consenting person, and
+            pull only the profile data that person agreed to share, without the agent ever touching a
             password.
           </p>
 
@@ -264,16 +264,16 @@ export function DocsArticle() {
             <H3>What your site does</H3>
             <P>
               When a request arrives with a credential, your server asks Assentry whether it&apos;s valid
-              (<C>verify</C>) — every time, never trusting the token on its own. If it is, you know which
+              (<C>verify</C>), every time, never trusting the token on its own. If it is, you know which
               person the agent represents, as an ID specific to you. If you need details like their name or email, you
               ask Assentry for them separately (<C>getProfile</C>), and you only get details you declared in the
               console <i>and</i> the person allowed.
             </P>
             <H3>What Assentry does not do</H3>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-slate-300">
-              <li>It never reads, fetches or touches your site&apos;s content — the agent does its own browsing.</li>
+              <li>It never reads, fetches or touches your site&apos;s content. The agent does its own browsing.</li>
               <li>It never sees or stores passwords for your site.</li>
-              <li>It doesn&apos;t perform the agent&apos;s task, or decide what an authorised agent may do on your site — your own code does.</li>
+              <li>It doesn&apos;t perform the agent&apos;s task, or decide what an authorised agent may do on your site. Your own code does.</li>
             </ul>
             <Note>
               There is no per-action permission scope today: a valid credential means &ldquo;this agent is
@@ -430,8 +430,8 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             <Table
               head={["Option", "Description"]}
               rows={[
-                [<C key="1">credentialHeader</C>, <>Read the credential from a different header. Defaults to the standard <C>Authorization: Bearer</C> — only change this with good reason.</>],
-                [<C key="2">discover</C>, <>A <C>DiscoverableRoute</C> — lists this route in your discovery document. Omit to keep it unlisted.</>],
+                [<C key="1">credentialHeader</C>, <>Read the credential from a different header. Defaults to the standard <C>Authorization: Bearer</C>. Only change this with good reason.</>],
+                [<C key="2">discover</C>, <>A <C>DiscoverableRoute</C> that lists this route in your discovery document. Omit to keep it unlisted.</>],
               ]}
             />
             <CodeBlock
@@ -445,7 +445,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             <H3 id="sdk-getcredential">getCredentialFromRequest(req, options?)</H3>
             <Signature>{"getCredentialFromRequest(req: Request, options?: { credentialHeader?: string }): string | null"}</Signature>
             <P>
-              Reads a credential without rejecting the request — for pages that accept either a normal
+              Reads a credential without rejecting the request, for pages that accept either a normal
               logged-in human <i>or</i> an agent:
             </P>
             <CodeBlock code={SESSION_OR_CREDENTIAL_CODE} label="server.ts" />
@@ -601,7 +601,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
                 emails yet, so treat the match as an unverified claim.
               </li>
               <li>
-                <b>Explicit linking</b> — a one-time confirmation by the person, while logged in to your site.
+                <b>Explicit linking</b>: a one-time confirmation by the person, while logged in to your site.
                 Stronger assurance; after it, any credential for that Assentry user is proof of that specific account.
               </li>
             </ul>
@@ -639,10 +639,10 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
   -d '{"credential":"<credential>"}'`}
             />
             <CodeBlock
-              label="200 — valid"
+              label="200, valid"
               code={`{ "valid": true, "userId": "usr_…", "agentId": "agt_…", "expiresAt": "2026-11-04T09:00:00.000Z" }`}
             />
-            <CodeBlock label="200 — not valid" code={`{ "valid": false, "reason": "revoked" }`} />
+            <CodeBlock label="200, not valid" code={`{ "valid": false, "reason": "revoked" }`} />
 
             <H3 id="api-profile">POST /profile</H3>
             <CodeBlock
@@ -653,7 +653,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
   -d '{"credential":"<credential>","fields":["name","email"]}'`}
             />
             <CodeBlock
-              label="200 — valid"
+              label="200, valid"
               code={`{
   "valid": true,
   "profile": { "name": "Ada Lovelace", "email": "ada@example.com" },
@@ -765,8 +765,8 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
               Managing keys: if a key leaks, <b>rotate</b> it in the{" "}
               <Link href="/developers/console" className="underline">
                 console
-              </Link>{" "}
-              — the old key stops working on the very next request. <b>Revoking</b> an app disables its key
+              </Link>
+              . The old key stops working on the very next request. <b>Revoking</b> an app disables its key
               permanently.
             </Note>
           </div>

@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 // Lets an MCP client (Claude, etc.) discover how to connect without a human
-// ever typing a key anywhere — it reads these on first contact with /mcp.
+// ever typing a key anywhere, it reads these on first contact with /mcp.
 export const oauthMetaRouter = Router();
 
 function issuer(req: { protocol: string; get(name: string): string | undefined }): string {
