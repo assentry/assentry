@@ -187,7 +187,10 @@ apps.post("/:id/verify-domain", async (req: DeveloperRequest, res) => {
     const messages = {
       no_domain: "Set the app's domain first.",
       taken: "That domain is already verified by another account.",
-      unreachable: `Couldn't fetch the verification file from ${existing.domain}${outcome.detail ? ` (${outcome.detail})` : ""}. Is the site deployed with the latest SDK?`,
+      unreachable:
+        outcome.detail === "the site answered 401"
+          ? `${existing.domain} couldn't get its verification token: Assentry refused the site's API key. Make sure the site is running with this app's current key (and has finished redeploying), then try again.`
+          : `Couldn't fetch the verification file from ${existing.domain}${outcome.detail ? ` (${outcome.detail})` : ""}. Is the site deployed with @assentry/sdk 0.8 or later and assentryDiscovery({ partnerName, assentry })?`,
       token_mismatch: `${existing.domain} is serving a different verification token. Check the site uses this app's API key.`,
     };
     return res.status(422).json({ error: messages[outcome.error] });
