@@ -7,7 +7,7 @@ import { DetailsTable } from "./DetailsTable";
 
 const BASE_URL = API_BASE_URL;
 
-const SECTIONS = [
+export const DOC_SECTIONS = [
   { id: "overview", label: "Overview & concepts" },
   { id: "quickstart", label: "Quickstart" },
   { id: "sdk-reference", label: "SDK reference" },
@@ -183,7 +183,7 @@ export function DeveloperDocs() {
         <aside className="hidden w-56 shrink-0 lg:block">
           <nav className="sticky top-24 space-y-1 text-sm">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Documentation</p>
-            {SECTIONS.map((s) => (
+            {DOC_SECTIONS.map((s) => (
               <a key={s.id} href={`#${s.id}`} className="block rounded-lg px-3 py-1.5 text-slate-400 hover:bg-white/5 hover:text-white">
                 {s.label}
               </a>
@@ -200,7 +200,7 @@ export function DeveloperDocs() {
           <details className="mb-8 rounded-xl border border-white/10 bg-white/5 lg:hidden">
             <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-white">Jump to a section</summary>
             <nav className="space-y-1 px-4 pb-3 text-sm">
-              {SECTIONS.map((s) => (
+              {DOC_SECTIONS.map((s) => (
                 <a key={s.id} href={`#${s.id}`} className="block py-1 text-slate-300 hover:text-white">
                   {s.label}
                 </a>
@@ -208,6 +208,17 @@ export function DeveloperDocs() {
             </nav>
           </details>
 
+          <DocsArticle />
+        </article>
+      </div>
+    </div>
+  );
+}
+
+/** The documentation itself, shared by the Docs page and the console's docs panel. */
+export function DocsArticle() {
+  return (
+    <>
           <p className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Assentry developer documentation</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Accept AI agents on your website</h1>
           <p className="mt-4 text-lg leading-relaxed text-slate-300">
@@ -631,8 +642,6 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
               permanently.
             </Note>
           </div>
-        </article>
-      </div>
-    </div>
+    </>
   );
 }

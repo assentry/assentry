@@ -5,6 +5,7 @@ import {
   BadgeCheck,
   BookOpen,
   ChevronRight,
+  ExternalLink,
   Globe,
   KeyRound,
   LayoutGrid,
@@ -20,11 +21,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../../lib/api";
 import { clearDevToken, devApi, getDevToken, type DeclaredField, type Developer, type DeveloperApp } from "../../lib/devApi";
 import { FIELD_TYPES, TYPE_LABELS, useStandardFields, type FieldType } from "../../lib/profileFields";
 import { Logo } from "../Logo";
+import { DOC_SECTIONS, DocsArticle } from "./DeveloperDocs";
 import { Badge, Button, Card, EmptyState, Input, Label, Select } from "../ui";
 
 interface RevealedKey {
@@ -51,6 +53,15 @@ const APP_SECTIONS = [
 ] as const;
 type AppSection = (typeof APP_SECTIONS)[number]["id"];
 
+/** Which part of the docs explains each console section. */
+const DOCS_FOR_SECTION: Record<AppSection, string> = {
+  overview: "quickstart",
+  domain: "discovery",
+  details: "details",
+  linking: "account-linking",
+  settings: "errors",
+};
+
 type View = { kind: "apps" } | { kind: "new" } | { kind: "app"; id: string; section: AppSection };
 
 function useConsoleView(): [View, (v: View) => void] {
@@ -60,19 +71,46 @@ function useConsoleView(): [View, (v: View) => void] {
   const appId = params.get("app");
   const section = (APP_SECTIONS.find((s) => s.id === params.get("section"))?.id ?? "overview") as AppSection;
   const view: View = appId ? { kind: "app", id: appId, section } : params.get("view") === "new" ? { kind: "new" } : { kind: "apps" };
+  const docs = params.get("docs");
   const go = useCallback(
     (v: View) => {
-      const q = v.kind === "app" ? `?app=${v.id}${v.section !== "overview" ? `&section=${v.section}` : ""}` : v.kind === "new" ? "?view=new" : "";
-      router.push(`${pathname}${q}`);
+      const q = new URLSearchParams();
+      if (v.kind === "app") {
+        q.set("app", v.id);
+        if (v.section !== "overview") q.set("section", v.section);
+      } else if (v.kind === "new") q.set("view", "new");
+      if (docs) q.set("docs", docs); // the docs panel stays open while you move around
+      const qs = q.toString();
+      router.push(`${pathname}${qs ? `?${qs}` : ""}`);
     },
-    [router, pathname]
+    [router, pathname, docs]
   );
   return [view, go];
+}
+
+/** The docs panel: open (at a section) or closed, kept in the URL as ?docs=<section>. */
+function useDocsPanel(): [string | null, (section: string | null) => void] {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const docs = params.get("docs");
+  const set = useCallback(
+    (section: string | null) => {
+      const q = new URLSearchParams(params.toString());
+      if (section) q.set("docs", section);
+      else q.delete("docs");
+      const qs = q.toString();
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+    },
+    [params, router, pathname]
+  );
+  return [docs, set];
 }
 
 export function DeveloperConsole() {
   const router = useRouter();
   const [view, go] = useConsoleView();
+  const [docs, setDocs] = useDocsPanel();
   const [developer, setDeveloper] = useState<Developer | null>(null);
   const [apps, setApps] = useState<DeveloperApp[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,6 +167,8 @@ export function DeveloperConsole() {
       view={view}
       go={go}
       email={developer.email}
+      docsOpen={Boolean(docs)}
+      onToggleDocs={() => setDocs(docs ? null : "overview")}
       onLogOut={logOut}
       onClose={() => setMobileOpen(false)}
     />
@@ -177,6 +217,7 @@ export function DeveloperConsole() {
                 app={app}
                 section={view.section}
                 go={go}
+                openDocs={setDocs}
                 onChanged={loadApps}
                 onRotated={async (apiKey) => {
                   setRevealed({ appName: app.name, apiKey, publicId: app.publicId, rotated: true });
@@ -190,7 +231,71 @@ export function DeveloperConsole() {
             ))}
         </main>
       </div>
+
+      {docs && <DocsPanel section={docs} onSection={setDocs} onClose={() => setDocs(null)} />}
     </div>
+  );
+}
+
+// ---- Docs, alongside the console ----
+
+function DocsPanel({ section, onSection, onClose }: { section: string; onSection: (s: string) => void; onClose: () => void }) {
+  const scroller = useRef<HTMLDivElement>(null);
+
+  // Jump to the chosen section inside the panel, without touching the page.
+  useEffect(() => {
+    const box = scroller.current;
+    const target = box?.querySelector<HTMLElement>(`#${CSS.escape(section)}`);
+    if (box && target) box.scrollTo({ top: target.offsetTop - 16, behavior: "smooth" });
+  }, [section]);
+
+  return (
+    <>
+      {/* On narrower screens the panel slides over the page. */}
+      <div className="fixed inset-0 z-30 bg-black/50 xl:hidden" onClick={onClose} />
+      <aside
+        className="fixed inset-y-0 right-0 z-40 flex w-full max-w-xl flex-col border-l border-white/10 bg-navy-900 shadow-2xl xl:sticky xl:top-0 xl:z-auto xl:h-screen xl:w-[34rem] xl:max-w-none xl:shrink-0 xl:shadow-none"
+        aria-label="Documentation"
+      >
+        <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+          <BookOpen className="h-4 w-4 text-slate-400" />
+          <Select value={section} onChange={(e) => onSection(e.target.value)} className="!w-auto flex-1 !py-1.5">
+            {DOC_SECTIONS.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </Select>
+          <a
+            href={`/developers/docs#${section}`}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-white"
+            title="Open the docs in a new tab"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </a>
+          <button onClick={onClose} className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-white" aria-label="Close docs">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div
+          ref={scroller}
+          className="relative min-h-0 flex-1 overflow-y-auto px-6 py-6 text-sm"
+          onClick={(e) => {
+            // Links to other doc sections scroll inside the panel instead of changing the page.
+            const a = (e.target as HTMLElement).closest("a");
+            const hash = a?.getAttribute("href");
+            if (hash?.startsWith("#")) {
+              e.preventDefault();
+              onSection(hash.slice(1));
+            }
+          }}
+        >
+          <DocsArticle />
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -224,6 +329,8 @@ function ConsoleSidebar({
   view,
   go,
   email,
+  docsOpen,
+  onToggleDocs,
   onLogOut,
   onClose,
 }: {
@@ -231,6 +338,8 @@ function ConsoleSidebar({
   view: View;
   go: (v: View) => void;
   email: string;
+  docsOpen: boolean;
+  onToggleDocs: () => void;
   onLogOut: () => void;
   onClose: () => void;
 }) {
@@ -287,9 +396,9 @@ function ConsoleSidebar({
       </nav>
 
       <div className="mt-4 space-y-1 border-t border-white/10 pt-4">
-        <Link href="/developers/docs" className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200">
-          <BookOpen className="h-4 w-4" /> Docs
-        </Link>
+        <NavButton active={docsOpen} onClick={onToggleDocs} icon={BookOpen}>
+          Docs
+        </NavButton>
         <p className="truncate px-3 pt-2 text-xs text-slate-500">{email}</p>
         <button onClick={onLogOut} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200">
           <LogOut className="h-4 w-4" /> Log out
@@ -486,12 +595,14 @@ function AppPage({
   app,
   section,
   go,
+  openDocs,
   onChanged,
   onRotated,
 }: {
   app: DeveloperApp;
   section: AppSection;
   go: (v: View) => void;
+  openDocs: (section: string) => void;
   onChanged: () => Promise<void>;
   onRotated: (apiKey: string) => Promise<void>;
 }) {
@@ -507,7 +618,17 @@ function AppPage({
         <ChevronRight className="h-3.5 w-3.5" />
         <span className="text-slate-300">{app.name}</span>
       </div>
-      <PageHeading title={heading} actions={<AppStatusBadge app={app} />} />
+      <PageHeading
+        title={heading}
+        actions={
+          <div className="flex items-center gap-3">
+            <button onClick={() => openDocs(DOCS_FOR_SECTION[section])} className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-white">
+              <BookOpen className="h-3.5 w-3.5" /> Help
+            </button>
+            <AppStatusBadge app={app} />
+          </div>
+        }
+      />
       {revoked && section !== "overview" ? (
         <Card>
           <EmptyState>This app is revoked. Its key no longer works and it can&apos;t be changed.</EmptyState>
@@ -521,7 +642,7 @@ function AppPage({
               <DeclaredFieldsEditor app={app} onSaved={onChanged} />
             </Card>
           )}
-          {section === "linking" && <LinkingSection app={app} onChanged={onChanged} />}
+          {section === "linking" && <LinkingSection app={app} onChanged={onChanged} openDocs={openDocs} />}
           {section === "settings" && <SettingsSection app={app} onChanged={onChanged} go={go} />}
         </>
       )}
@@ -682,7 +803,7 @@ function DomainSection({ app, onChanged }: { app: DeveloperApp; onChanged: () =>
   );
 }
 
-function LinkingSection({ app, onChanged }: { app: DeveloperApp; onChanged: () => Promise<void> }) {
+function LinkingSection({ app, onChanged, openDocs }: { app: DeveloperApp; onChanged: () => Promise<void>; openDocs: (s: string) => void }) {
   const { busy, run, noteEl, setNote } = useAppAction();
   const [uris, setUris] = useState(app.linkRedirectUris.join("\n"));
 
@@ -691,9 +812,9 @@ function LinkingSection({ app, onChanged }: { app: DeveloperApp; onChanged: () =
       <p className="mb-4 text-sm text-slate-400">
         Optional. Lets people who already have an account on your site confirm it&apos;s theirs, once, so their agent is
         recognised as that account.{" "}
-        <Link href="/developers/docs#account-linking" className="text-slate-300 underline hover:text-white">
+        <button type="button" onClick={() => openDocs("account-linking")} className="text-slate-300 underline hover:text-white">
           How it works
-        </Link>
+        </button>
       </p>
       <form
         onSubmit={(e) => {
