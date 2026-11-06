@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { issueCredential } from "./credential";
 import { normaliseDomain } from "./domain";
 import { pairwiseAgentId, pairwiseUserId } from "./pairwise";
+import { requestMissingDetails, type MissingDetail } from "./profile";
 import { prisma } from "./prisma";
 
 // Codes are copied by agents, never typed by people, so they're long and
@@ -61,7 +62,7 @@ export async function startSignIn(partnerId: string) {
 }
 
 export type ApproveOutcome =
-  | { ok: true; siteName: string; siteDomain: string; sharedFields: string[] }
+  | { ok: true; siteName: string; siteDomain: string; sharedFields: string[]; missing: MissingDetail[] }
   | { ok: false; error: "domain_mismatch"; codeDomain: string }
   | {
       ok: false;
@@ -88,9 +89,7 @@ export async function approveSignIn(
 ): Promise<ApproveOutcome> {
   const request = await prisma.signInRequest.findUnique({
     where: { codeHash: hashCode(normaliseCode(rawCode)) },
-    include: {
-      partner: { select: { name: true, revokedAt: true, domain: true, domainVerifiedAt: true, declaredFields: true } },
-    },
+    include: { partner: true },
   });
   if (!request || request.partner.revokedAt || !request.partner.domain || !request.partner.domainVerifiedAt) {
     return { ok: false, error: "code_not_found" };
@@ -138,9 +137,12 @@ export async function approveSignIn(
     },
   });
 
-  // What this site can receive: only what it declared AND the person allowed.
-  const sharedFields = request.partner.declaredFields.filter((f) => grant.consentedFields.includes(f));
-  return { ok: true, siteName: request.partner.name, siteDomain: request.partner.domain, sharedFields };
+  // Tell the agent what the site will get and what's missing; anything
+  // missing becomes an in-app request to the person.
+  const missing = await requestMissingDetails(request.partner, grant);
+  const declared = await prisma.partnerField.findMany({ where: { partnerId: request.partnerId }, select: { key: true } });
+  const sharedFields = declared.map((f) => f.key).filter((k) => !missing.some((m) => m.key === k));
+  return { ok: true, siteName: request.partner.name, siteDomain: request.partner.domain, sharedFields, missing };
 }
 
 export type CollectOutcome =

@@ -45,6 +45,7 @@ export const devApi = {
     request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
+  put: <T>(path: string, body: unknown) => request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
 };
 
 export interface Developer {
@@ -62,7 +63,16 @@ export interface DeveloperApp {
   domain: string | null;
   domainVerificationToken: string | null;
   domainVerifiedAt: string | null;
-  declaredFields: string[];
+  fields: DeclaredField[];
   createdAt: string;
   revokedAt: string | null;
+}
+
+export interface DeclaredField {
+  key: string;
+  required: boolean;
+  custom: boolean;
+  label: string | null;
+  type: string | null;
+  options: string[];
 }

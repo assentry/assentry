@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../../lib/api";
-import { clearDevToken, devApi, getDevToken, type Developer, type DeveloperApp } from "../../lib/devApi";
-import { PROFILE_FIELDS } from "../../lib/profileFields";
-import { Badge, Button, Card, EmptyState, Input, Label } from "../ui";
+import { clearDevToken, devApi, getDevToken, type DeclaredField, type Developer, type DeveloperApp } from "../../lib/devApi";
+import { FIELD_TYPES, TYPE_LABELS, useStandardFields, type FieldType } from "../../lib/profileFields";
+import { Badge, Button, Card, EmptyState, Input, Label, Select } from "../ui";
 import { DevHeader } from "./DevHeader";
 
 interface RevealedKey {
@@ -247,31 +247,7 @@ function AppCard({
   const [name, setName] = useState(app.name);
   const [domain, setDomain] = useState(app.domain ?? "");
   const [detailsNote, setDetailsNote] = useState<string | null>(null);
-  const [fields, setFields] = useState<string[]>(app.declaredFields);
-  const [fieldsNote, setFieldsNote] = useState<string | null>(null);
-  const fieldsChanged = [...fields].sort().join(",") !== [...app.declaredFields].sort().join(",");
 
-  function toggleField(key: string) {
-    setFields((f) => (f.includes(key) ? f.filter((k) => k !== key) : [...f, key]));
-    setFieldsNote(null);
-  }
-
-  async function saveFields(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    setFieldsNote(null);
-    try {
-      const data = await devApi.patch<{ app: DeveloperApp }>(`/developer/apps/${app.id}`, { declaredFields: fields });
-      setFields(data.app.declaredFields);
-      setFieldsNote("Saved");
-      await onChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
   const [verifyNote, setVerifyNote] = useState<string | null>(null);
   const detailsChanged = name.trim() !== app.name || domain.trim() !== (app.domain ?? "");
 
@@ -476,36 +452,7 @@ function AppCard({
         </form>
       )}
 
-      {!revoked && (
-        <form onSubmit={saveFields} className="mt-5 border-t border-white/5 pt-4">
-          <Label>Details this site needs</Label>
-          <p className="mb-3 text-xs text-slate-400">
-            Your site only ever receives details you tick here, and only if the person has also allowed them. Ask for
-            as little as you need.
-          </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {PROFILE_FIELDS.map((f) => (
-              <label key={f.key} className="flex items-center gap-2 text-sm text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={fields.includes(f.key)}
-                  onChange={() => toggleField(f.key)}
-                  className="h-4 w-4 accent-white"
-                />
-                {f.label}
-                <code className="text-xs text-slate-500">{f.key}</code>
-              </label>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center gap-3">
-            <Button type="submit" variant="secondary" disabled={busy || !fieldsChanged}>
-              Save details
-            </Button>
-            {fieldsNote && <span className="text-xs text-neutral-300">{fieldsNote}</span>}
-            {fields.length === 0 && <span className="text-xs text-amber-300">None ticked: the site gets no details.</span>}
-          </div>
-        </form>
-      )}
+      {!revoked && <DeclaredFieldsEditor app={app} onSaved={onChanged} />}
 
       {!revoked && (
         <form onSubmit={saveUris} className="mt-5 border-t border-white/5 pt-4">
@@ -534,5 +481,187 @@ function AppCard({
 
       {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
     </Card>
+  );
+}
+
+// ---- Details the site needs ----
+
+interface CustomDraft {
+  key: string;
+  label: string;
+  type: FieldType;
+  options: string;
+  required: boolean;
+}
+
+function DeclaredFieldsEditor({ app, onSaved }: { app: DeveloperApp; onSaved: () => Promise<void> }) {
+  const standard = useStandardFields();
+  const initialStandard = () =>
+    Object.fromEntries(app.fields.filter((f) => !f.custom).map((f) => [f.key, f.required])) as Record<string, boolean>;
+  const initialCustom = (): CustomDraft[] =>
+    app.fields
+      .filter((f) => f.custom)
+      .map((f) => ({ key: f.key, label: f.label ?? f.key, type: (f.type ?? "text") as FieldType, options: f.options.join(", "), required: f.required }));
+
+  // key -> required, for ticked standard details
+  const [picked, setPicked] = useState<Record<string, boolean>>(initialStandard);
+  const [custom, setCustom] = useState<CustomDraft[]>(initialCustom);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const payload = (): DeclaredField[] => [
+    ...Object.entries(picked).map(([key, required]) => ({ key, required, custom: false, label: null, type: null, options: [] })),
+    ...custom.map((c) => ({
+      key: c.key.trim(),
+      required: c.required,
+      custom: true,
+      label: c.label.trim(),
+      type: c.type,
+      options: c.type === "choice" ? c.options.split(",").map((o) => o.trim()).filter(Boolean) : [],
+    })),
+  ];
+  const canon = (fs: DeclaredField[]) =>
+    JSON.stringify(
+      [...fs]
+        .sort((a, b) => a.key.localeCompare(b.key))
+        .map((f) => [f.key, f.required, f.custom, f.label ?? null, f.type ?? null, f.options ?? []])
+    );
+  const changed = canon(payload()) !== canon(app.fields);
+
+  async function save() {
+    setBusy(true);
+    setNote(null);
+    try {
+      await devApi.put(`/developer/apps/${app.id}/fields`, {
+        fields: payload().map((f) => ({
+          key: f.key,
+          required: f.required,
+          ...(f.custom ? { custom: { label: f.label, type: f.type, options: f.options } } : {}),
+        })),
+      });
+      setNote({ ok: true, text: "Saved" });
+      await onSaved();
+    } catch (err) {
+      setNote({ ok: false, text: errorMessage(err) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-5 border-t border-white/5 pt-4">
+      <Label>Details this site needs</Label>
+      <p className="mb-3 text-xs text-slate-400">
+        Your site only ever receives details listed here, and only if the person allows them. Each arrives in the format
+        shown. Ask for as little as you need. When a person&apos;s agent signs in without a detail you need, Assentry asks
+        the person for it.
+      </p>
+
+      {!standard ? (
+        <div className="h-24 animate-pulse rounded-lg bg-white/5" />
+      ) : (
+        <div className="divide-y divide-white/5 rounded-lg border border-white/10">
+          {standard.map((f) => {
+            const on = f.key in picked;
+            return (
+              <div key={f.key} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm">
+                <label className="flex min-w-[12rem] flex-1 items-center gap-2 text-slate-200">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-white"
+                    checked={on}
+                    onChange={() =>
+                      setPicked((p) => {
+                        const next = { ...p };
+                        if (on) delete next[f.key];
+                        else next[f.key] = false;
+                        return next;
+                      })
+                    }
+                  />
+                  {f.label}
+                  <code className="text-xs text-slate-500">{f.key}</code>
+                </label>
+                <span className="flex-1 text-xs text-slate-500">{f.format}</span>
+                <span className="w-[9.5rem] text-right">
+                  {on && <RequiredToggle value={picked[f.key]} onChange={(v) => setPicked((p) => ({ ...p, [f.key]: v }))} />}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p className="mb-2 mt-4 text-xs font-medium text-slate-400">Your own details</p>
+      {custom.length === 0 && <p className="mb-2 text-xs text-slate-500">None. Add one for anything not in the list above.</p>}
+      <div className="space-y-2">
+        {custom.map((c, i) => {
+          const set = (patch: Partial<CustomDraft>) => setCustom((cs) => cs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+          return (
+            <div key={i} className="grid grid-cols-1 items-center gap-2 rounded-lg border border-white/10 p-2 sm:grid-cols-[1fr_1fr_10rem_auto_auto]">
+              <Input placeholder="Label, e.g. Membership number" value={c.label} onChange={(e) => set({ label: e.target.value })} />
+              <Input placeholder="key, e.g. membership_number" value={c.key} onChange={(e) => set({ key: e.target.value })} />
+              <Select value={c.type} onChange={(e) => set({ type: e.target.value as FieldType })}>
+                {FIELD_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {TYPE_LABELS[t]}
+                  </option>
+                ))}
+              </Select>
+              <RequiredToggle value={c.required} onChange={(v) => set({ required: v })} />
+              <button
+                type="button"
+                className="text-xs text-slate-500 hover:text-rose-300"
+                onClick={() => setCustom((cs) => cs.filter((_, j) => j !== i))}
+              >
+                Remove
+              </button>
+              {c.type === "choice" && (
+                <Input
+                  className="sm:col-span-5"
+                  placeholder="Options, comma-separated"
+                  value={c.options}
+                  onChange={(e) => set({ options: e.target.value })}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        className="mt-2 inline-flex items-center gap-1 text-sm text-slate-300 hover:text-white"
+        onClick={() => setCustom((cs) => [...cs, { key: "", label: "", type: "text", options: "", required: false }])}
+      >
+        <Plus className="h-4 w-4" /> Add your own detail
+      </button>
+
+      <div className="mt-3 flex items-center gap-3">
+        <Button type="button" variant="secondary" onClick={save} disabled={busy || !changed}>
+          Save details
+        </Button>
+        {note && <span className={`text-xs ${note.ok ? "text-neutral-300" : "text-rose-400"}`}>{note.text}</span>}
+        {Object.keys(picked).length + custom.length === 0 && (
+          <span className="text-xs text-amber-300">Nothing listed: your site gets no details.</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RequiredToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <span className="inline-flex overflow-hidden rounded-md border border-white/15 text-xs">
+      {[false, true].map((v) => (
+        <button
+          key={String(v)}
+          type="button"
+          onClick={() => onChange(v)}
+          className={`px-2 py-1 ${value === v ? "bg-white text-black" : "text-slate-400 hover:text-white"}`}
+        >
+          {v ? "Required" : "Optional"}
+        </button>
+      ))}
+    </span>
   );
 }

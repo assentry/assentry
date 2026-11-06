@@ -4,6 +4,7 @@ import { z } from "zod";
 import { DeveloperRequest, requireDeveloper, signDeveloperSession } from "../lib/developerAuth";
 import { prisma } from "../lib/prisma";
 import { newVerificationToken, normaliseDomain, verifyPartnerDomain } from "../lib/domain";
+import { CUSTOM_KEY_PATTERN, FIELD_TYPES, standardField } from "../lib/fields";
 import { generateSecret, hashSecret } from "../lib/secrets";
 
 // The developer console's API: developer accounts (separate from end-user
@@ -66,7 +67,10 @@ const appSelect = {
   domain: true,
   domainVerificationToken: true,
   domainVerifiedAt: true,
-  declaredFields: true,
+  fields: {
+    select: { key: true, required: true, custom: true, label: true, type: true, options: true },
+    orderBy: { createdAt: "asc" as const },
+  },
   createdAt: true,
   revokedAt: true,
 } as const;
@@ -92,11 +96,41 @@ apps.get("/", async (req: DeveloperRequest, res) => {
 });
 
 const nameSchema = z.string().trim().min(1).max(100);
-// The profile details a site says it needs; same naming rule as the profile itself.
+// The details a site declares: standard ones by key, or its own custom ones
+// (with a label and type). Each is required or optional.
+const declaredFieldSchema = z
+  .object({
+    key: z.string().regex(CUSTOM_KEY_PATTERN, "keys are lowercase letters, digits and _"),
+    required: z.boolean().default(false),
+    custom: z
+      .object({
+        label: z.string().trim().min(1).max(60),
+        type: z.enum(FIELD_TYPES),
+        options: z.array(z.string().trim().min(1).max(60)).max(30).optional(),
+      })
+      .optional(),
+  })
+  .superRefine((f, ctx) => {
+    if (!f.custom && !standardField(f.key)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${f.key} isn't a standard detail; describe it as a custom one` });
+    if (f.custom && standardField(f.key)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${f.key} is a standard detail; pick another key for a custom one` });
+    if (f.custom?.type === "choice" && !f.custom.options?.length) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `list the options for ${f.key}` });
+  });
 const declaredFieldsSchema = z
-  .array(z.string().regex(/^[a-z][a-z0-9_]{0,39}$/, "field names are lowercase letters, digits and _"))
-  .max(40)
-  .transform((fields) => Array.from(new Set(fields)));
+  .array(declaredFieldSchema)
+  .max(60)
+  .refine((fs) => new Set(fs.map((f) => f.key)).size === fs.length, "each key can only be declared once");
+
+function fieldRows(partnerId: string, fields: z.infer<typeof declaredFieldsSchema>) {
+  return fields.map((f) => ({
+    partnerId,
+    key: f.key,
+    required: f.required,
+    custom: Boolean(f.custom),
+    label: f.custom?.label ?? null,
+    type: f.custom?.type ?? null,
+    options: f.custom?.type === "choice" ? f.custom.options ?? [] : [],
+  }));
+}
 const domainSchema = z.string().transform((value, ctx) => {
   const domain = normaliseDomain(value);
   if (!domain) {
@@ -108,7 +142,7 @@ const domainSchema = z.string().transform((value, ctx) => {
 
 apps.post("/", async (req: DeveloperRequest, res) => {
   const parsed = z
-    .object({ name: nameSchema, domain: domainSchema, declaredFields: declaredFieldsSchema.optional() })
+    .object({ name: nameSchema, domain: domainSchema, fields: declaredFieldsSchema.optional() })
     .safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed.error) });
 
@@ -118,14 +152,16 @@ apps.post("/", async (req: DeveloperRequest, res) => {
       name: parsed.data.name,
       domain: parsed.data.domain,
       domainVerificationToken: newVerificationToken(),
-      declaredFields: parsed.data.declaredFields ?? [],
       developerId: req.developerId!,
       apiKeyHash,
       apiKeyPreview,
     },
-    select: appSelect,
+    select: { id: true },
   });
-  res.status(201).json({ app, apiKey });
+  if (parsed.data.fields?.length) {
+    await prisma.partnerField.createMany({ data: fieldRows(app.id, parsed.data.fields) });
+  }
+  res.status(201).json({ app: await prisma.partner.findUnique({ where: { id: app.id }, select: appSelect }), apiKey });
 });
 
 // Replaces the key outright — the old one stops working on the next request.
@@ -157,7 +193,7 @@ apps.post("/:id/revoke", async (req: DeveloperRequest, res) => {
 
 // Account-linking redirect URIs (see /link/authorize) — validated against
 // exactly this list, so they have to be registered before linking works.
-// Name, domain, declared profile details and account-linking redirect URIs (see /link/authorize).
+// Name, domain and account-linking redirect URIs (see /link/authorize).
 // Changing the domain drops its verification, since it's a different site.
 apps.patch("/:id", async (req: DeveloperRequest, res) => {
   const parsed = z
@@ -165,7 +201,6 @@ apps.patch("/:id", async (req: DeveloperRequest, res) => {
       name: nameSchema.optional(),
       domain: domainSchema.optional(),
       linkRedirectUris: z.array(z.string().url().refine((u) => /^https?:\/\//.test(u))).max(10).optional(),
-      declaredFields: declaredFieldsSchema.optional(),
     })
     .safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed.error) });
@@ -173,19 +208,32 @@ apps.patch("/:id", async (req: DeveloperRequest, res) => {
   const existing = await findOwnApp(req.developerId!, req.params.id);
   if (!existing) return res.status(404).json({ error: "app not found" });
 
-  const { name, domain, linkRedirectUris, declaredFields } = parsed.data;
+  const { name, domain, linkRedirectUris } = parsed.data;
   const domainChanged = domain !== undefined && domain !== existing.domain;
   const app = await prisma.partner.update({
     where: { id: existing.id },
     data: {
       ...(name !== undefined ? { name } : {}),
       ...(linkRedirectUris !== undefined ? { linkRedirectUris } : {}),
-      ...(declaredFields !== undefined ? { declaredFields } : {}),
       ...(domainChanged ? { domain, domainVerificationToken: newVerificationToken(), domainVerifiedAt: null } : {}),
     },
     select: appSelect,
   });
   res.json({ app });
+});
+
+// Replaces the app's declared details in one go.
+apps.put("/:id/fields", async (req: DeveloperRequest, res) => {
+  const parsed = z.object({ fields: declaredFieldsSchema }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed.error) });
+  const existing = await findOwnApp(req.developerId!, req.params.id);
+  if (!existing) return res.status(404).json({ error: "app not found" });
+
+  await prisma.$transaction([
+    prisma.partnerField.deleteMany({ where: { partnerId: existing.id } }),
+    prisma.partnerField.createMany({ data: fieldRows(existing.id, parsed.data.fields) }),
+  ]);
+  res.json({ app: await prisma.partner.findUnique({ where: { id: existing.id }, select: appSelect }) });
 });
 
 apps.post("/:id/verify-domain", async (req: DeveloperRequest, res) => {

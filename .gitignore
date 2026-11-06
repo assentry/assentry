@@ -10,3 +10,4 @@ dist/
 
 # Claude Code session-local state, not part of the project.
 .claude/
+.uploads

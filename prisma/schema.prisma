@@ -15,13 +15,98 @@ model User {
   name         String?
   createdAt    DateTime @default(now())
 
-  // Fields an agent may be consented to disclose to a verified partner,
-  // filtered per-grant by Grant.consentedFields.
-  profile      Json     @default("{}")
+  // Lets the person's agents fill in missing details without asking each
+  // time. Off by default: agent suggestions wait for the person to confirm.
+  agentAutoFill Boolean @default(false)
 
-  agents    Agent[]
-  grants    Grant[]
-  auditLogs AuditLog[]
+  agents        Agent[]
+  grants        Grant[]
+  auditLogs     AuditLog[]
+  profileValues ProfileValue[]
+  customFields  UserField[]
+  fieldRequests FieldRequest[]
+  files         StoredFile[]
+}
+
+// One profile detail's value. `key` is a standard key ("email"), a person's
+// own detail ("my:<slug>") or a site's custom detail ("site:<partnerId>:<key>").
+// `value` is already normalised to the detail's type (see lib/fieldTypes.ts).
+model ProfileValue {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  value     Json
+  // "person" (entered by them) or "agent" (suggested by one of their agents).
+  source    String   @default("person")
+  // "confirmed" values can be shared; "suggested" ones wait for the person.
+  status    String   @default("confirmed")
+  agentId   String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, key])
+}
+
+// A detail the person added for themselves (label + type). Private to them.
+model UserField {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String // "my:<slug>"
+  label     String
+  type      String
+  options   String[] @default([])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, key])
+}
+
+// A site asked for a detail the person hasn't filled in (raised when their
+// agent signs in). Shown in-app until the person supplies it.
+model FieldRequest {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partnerId  String
+  partner    Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  key        String // profile key, as in ProfileValue
+  required   Boolean
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@unique([userId, partnerId, key])
+}
+
+// A file a person uploaded for a file-type detail. The bytes live in object
+// storage (S3-compatible; local disk in development) under storageKey.
+model StoredFile {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fieldKey    String
+  filename    String
+  contentType String
+  size        Int
+  sha256      String?
+  storageKey  String    @unique
+  // Null until the upload is checked and accepted.
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  downloadTokens FileDownloadToken[]
+}
+
+// Single-use, 5-minute link for a site to download a file it's allowed.
+model FileDownloadToken {
+  id        String     @id @default(uuid())
+  tokenHash String     @unique
+  fileId    String
+  file      StoredFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  partnerId String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime   @default(now())
 }
 
 // Layer 2: Agent. A connected AI orchestrator instance (Claude/GPT/Grok/etc),
@@ -59,12 +144,12 @@ model Grant {
   user            User      @relation(fields: [userId], references: [id])
   agentId         String
   agent           Agent     @relation(fields: [agentId], references: [id])
-  consentedFields String[] @default([]) // profile fields this grant may disclose, e.g. ["name","email","resume"]
+  consentedFields String[]  @default([]) // profile fields this grant may disclose, e.g. ["name","email","resume"]
   expiresAt       DateTime
   revokedAt       DateTime?
   createdAt       DateTime  @default(now())
 
-  auditLogs AuditLog[]
+  auditLogs      AuditLog[]
   signInRequests SignInRequest[]
 
   @@index([userId])
@@ -122,21 +207,21 @@ model Developer {
 }
 
 model Partner {
-  id           String   @id @default(uuid())
-  name         String
-  apiKeyHash   String   @unique
-  createdAt    DateTime @default(now())
+  id         String   @id @default(uuid())
+  name       String
+  apiKeyHash String   @unique
+  createdAt  DateTime @default(now())
 
   // Owning developer. Nullable: partners created before developer accounts
   // existed (e.g. the demo site) have no owner and can't be managed
   // from the console.
-  developerId String?
-  developer   Developer? @relation(fields: [developerId], references: [id])
+  developerId   String?
+  developer     Developer? @relation(fields: [developerId], references: [id])
   // Non-secret prefix of the current key, so a developer can tell keys
   // apart in the console. The full key is never stored.
   apiKeyPreview String?
   // A revoked partner's key is rejected everywhere (requirePartner).
-  revokedAt DateTime?
+  revokedAt     DateTime?
 
   // The site's hostname, e.g. "shop.example.com". Shown to agents so they
   // can check it against the page they're on, so it only counts once
@@ -147,23 +232,24 @@ model Partner {
   domainVerificationToken String?
   domainVerifiedAt        DateTime?
 
-  // The profile details this site says it needs. /profile releases only
-  // fields that are both declared here and allowed by the person's grant.
-  declaredFields String[] @default([])
+  // The details this site says it needs (standard ones it ticked, plus its
+  // own custom ones), each required or optional.
+  fields        PartnerField[]
+  fieldRequests FieldRequest[]
 
   // Safe to put in a browser-facing URL (unlike id/apiKeyHash semantics —
   // id already is, but this makes the "safe to expose" contract explicit
   // for the account-linking flow below).
-  publicId      String   @unique @default(uuid())
+  publicId         String   @unique @default(uuid())
   // Where this partner is allowed to be redirected back to after an
   // account-link confirmation — validated the same way OAuthClient
   // redirect_uris are, to prevent an attacker redirecting a link code
   // somewhere unregistered.
   linkRedirectUris String[] @default([])
 
-  auditLogs AuditLog[]
+  auditLogs        AuditLog[]
   accountLinkCodes AccountLinkCode[]
-  signInRequests SignInRequest[]
+  signInRequests   SignInRequest[]
 }
 
 // Case 2 from STRATEGY.md's "what 'the agent logs in' actually means":
@@ -244,4 +330,22 @@ model SigningKey {
   privateKeyEncrypted String
   createdAt           DateTime  @default(now())
   retiredAt           DateTime?
+}
+
+// A detail a site declared: a standard key, or one of its own custom details
+// (custom=true, with label/type/options). Custom keys never clash with
+// standard ones and are stored per site ("site:<partnerId>:<key>").
+model PartnerField {
+  id        String   @id @default(uuid())
+  partnerId String
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  key       String
+  required  Boolean  @default(false)
+  custom    Boolean  @default(false)
+  label     String?
+  type      String?
+  options   String[] @default([])
+  createdAt DateTime @default(now())
+
+  @@unique([partnerId, key])
 }

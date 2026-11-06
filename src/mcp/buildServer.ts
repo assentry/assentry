@@ -2,6 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { issueCredentialForAgentGrant, listGrantsForAgent } from "../lib/agentActions";
 import { approveSignIn } from "../lib/signIn";
+import type { MissingDetail } from "../lib/profile";
+import { listOpenRequests, suggestDetail } from "../lib/agentDetails";
 
 // The MCP server an AI agent talks to once it's OAuth-connected: two tools,
 // reached over the authenticated remote transport. One McpServer instance
@@ -138,13 +140,74 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
               `Approved for "${outcome.siteName}" (${outcome.siteDomain}, verified). ` +
               "The page signs you in within a few seconds by itself. " +
               (outcome.sharedFields.length
-                ? `This site can receive: ${outcome.sharedFields.join(", ")}.`
-                : "This site receives none of the person's details."),
+                ? `This site can receive: ${outcome.sharedFields.join(", ")}. `
+                : "This site receives none of the person's details. ") +
+              describeMissing(outcome.missing),
           },
         ],
       };
     }
   );
 
+  server.registerTool(
+    "list_requested_details",
+    {
+      description:
+        "List details that participating sites have asked the person for and that aren't available yet: each " +
+        "with the site, key, label, type and whether it's required. The person has been notified in the Assentry app. " +
+        "If you already know an answer for certain from your conversations with the person, you may suggest it " +
+        "with suggest_detail; the person confirms it before any site sees it.",
+    },
+    async () => {
+      const requests = await listOpenRequests(agentId);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: requests.length ? JSON.stringify(requests, null, 2) : "No sites are waiting on any details.",
+          },
+        ],
+      };
+    }
+  );
+
+  server.registerTool(
+    "suggest_detail",
+    {
+      description:
+        "Suggest a value for one of the person's details that a site asked for (see list_requested_details). " +
+        "Only suggest what you know for certain from the person; never guess or invent. The suggestion is saved as " +
+        "'suggested by your agent' and isn't shared with any site until the person confirms it (unless they've " +
+        "chosen to let their agent fill in details without asking). Values must match the detail's type, e.g. " +
+        "dates as YYYY-MM-DD, phone numbers with country code, addresses as an object with street_address, " +
+        "locality, region, postal_code and country (ISO code). Files can't be suggested.",
+      inputSchema: {
+        key: z.string().describe("The detail's key, as listed by list_requested_details"),
+        value: z.unknown().describe("The value, in the detail's type"),
+        siteDomain: z
+          .string()
+          .optional()
+          .describe("For a site's own custom detail: that site's domain, as listed by list_requested_details"),
+      },
+    },
+    async ({ key, value, siteDomain }) => {
+      const outcome = await suggestDetail(agentId, key, value, siteDomain);
+      return outcome.ok
+        ? { content: [{ type: "text" as const, text: outcome.message }] }
+        : { isError: true, content: [{ type: "text" as const, text: outcome.error }] };
+    }
+  );
+
   return server;
+}
+
+function describeMissing(missing: MissingDetail[]): string {
+  if (!missing.length) return "";
+  const list = missing
+    .map((m) => `${m.label} (${m.key}, ${m.type}${m.required ? ", required" : ""}${m.reason === "not_allowed" ? ", filled in but not yet allowed for this site" : ""})`)
+    .join("; ");
+  return (
+    `Not available to this site yet: ${list}. The person has been asked in the Assentry app. ` +
+    "If you know any of these for certain, you can suggest them with suggest_detail for the person to confirm."
+  );
 }

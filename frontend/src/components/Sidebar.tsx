@@ -20,11 +20,13 @@ export function Sidebar({
   onTabChange,
   email,
   onSignOut,
+  badges = {},
 }: {
   tab: Tab;
   onTabChange: (tab: Tab) => void;
   email: string;
   onSignOut: () => void;
+  badges?: Partial<Record<Tab, number>>;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -59,6 +61,14 @@ export function Sidebar({
               >
                 <Icon className="h-4 w-4" strokeWidth={2} />
                 {label}
+                {badges[id] ? (
+                  <span
+                    className="ml-auto rounded-full bg-white px-1.5 text-xs font-semibold text-black"
+                    aria-label={`${badges[id]} need your attention`}
+                  >
+                    {badges[id]}
+                  </span>
+                ) : null}
               </button>
             );
           })}

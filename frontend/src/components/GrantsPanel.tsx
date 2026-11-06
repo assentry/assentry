@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { Agent, Grant, Platform } from "../lib/types";
-import { PROFILE_FIELDS } from "../lib/profileFields";
+import { useStandardFields } from "../lib/profileFields";
 import { Badge, Button, Card, EmptyState, Input, Label, MultiSelect, Select } from "./ui";
 
 const PLATFORM_LABELS: Record<Platform, string> = {
@@ -13,7 +13,6 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   other: "Other",
 };
 
-const FIELD_OPTIONS = PROFILE_FIELDS.map((f) => ({ value: f.key, label: f.label }));
 
 function grantStatus(grant: Grant): { label: string; tone: "success" | "danger" | "warning" } {
   if (grant.revokedAt) return { label: "Revoked", tone: "danger" };
@@ -31,6 +30,8 @@ export function GrantsPanel({
   onChange: () => void;
 }) {
   const activeAgents = agents.filter((a) => !a.revokedAt);
+  const standardFields = useStandardFields();
+  const fieldOptions = (standardFields ?? []).map((f) => ({ value: f.key, label: f.label }));
   const [agentId, setAgentId] = useState(activeAgents[0]?.id ?? "");
   const [fields, setFields] = useState<string[]>(["name", "email"]);
   const [minutes, setMinutes] = useState(60);
@@ -85,8 +86,8 @@ export function GrantsPanel({
                 </Select>
               </div>
               <div>
-                <Label>Consented fields</Label>
-                <MultiSelect options={FIELD_OPTIONS} selected={fields} onChange={setFields} />
+                <Label>Details it may share</Label>
+                <MultiSelect options={fieldOptions} selected={fields} onChange={setFields} />
               </div>
               <div>
                 <Label>Expires in (minutes)</Label>

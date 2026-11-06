@@ -17,6 +17,7 @@ import { profileRouter } from "./routes/profile";
 import { signInRouter } from "./routes/signIn";
 import { domainVerificationRouter } from "./routes/domainVerification";
 import { getJwks } from "./lib/keys";
+import { fieldsCatalogueRouter, filesRouter } from "./routes/files";
 import { meRouter } from "./routes/me";
 import { verifyRouter } from "./routes/verify";
 
@@ -47,6 +48,8 @@ app.use("/verify", verifyRouter);
 app.use("/profile", profileRouter);
 app.use("/sign-in-requests", signInRouter);
 app.use("/domain-verification", domainVerificationRouter);
+app.use("/files", filesRouter);
+app.use("/fields", fieldsCatalogueRouter);
 
 // Public keys that sign agent credentials, so anyone can check a credential
 // came from Assentry. Sites still ask /verify, which also checks revocation.

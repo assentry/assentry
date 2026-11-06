@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AgentsPanel } from "../../components/AgentsPanel";
 import { AuditPanel } from "../../components/AuditPanel";
 import { GrantsPanel } from "../../components/GrantsPanel";
@@ -21,6 +21,16 @@ export default function DashboardPage() {
   const [grants, setGrants] = useState<Grant[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notices, setNotices] = useState(0);
+
+  const refreshNotices = useCallback(async () => {
+    try {
+      const data = await api.get<{ count: number }>("/me/notices");
+      setNotices(data.count);
+    } catch {
+      // The badge is a convenience; ignore failures.
+    }
+  }, []);
 
   useEffect(() => {
     const token = getToken();
@@ -57,6 +67,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
     refreshAll().finally(() => setLoading(false));
+    refreshNotices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -78,7 +89,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-navy-950 lg:flex-row">
-      <Sidebar tab={tab} onTabChange={setTab} email={user.email} onSignOut={signOut} />
+      <Sidebar tab={tab} onTabChange={setTab} email={user.email} onSignOut={signOut} badges={{ profile: notices }} />
 
       <div className="flex-1 overflow-y-auto">
         <header className="sticky top-0 z-10 hidden border-b border-white/10 bg-navy-950/80 px-8 py-4 backdrop-blur lg:block">
@@ -91,7 +102,7 @@ export default function DashboardPage() {
           ) : (
             <div key={tab} className="animate-fade-in">
               {tab === "overview" && <OverviewPanel user={user} agents={agents} grants={grants} logs={logs} />}
-              {tab === "profile" && <ProfilePanel accountEmail={user.email} />}
+              {tab === "profile" && <ProfilePanel accountEmail={user.email} onNoticesChanged={refreshNotices} />}
               {tab === "agents" && <AgentsPanel agents={agents} onChange={refreshAll} />}
               {tab === "grants" && <GrantsPanel agents={agents} grants={grants} onChange={refreshAll} />}
               {tab === "signins" && <SignInsPanel />}

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { CodeBlock } from "./CodeBlock";
 import { DevHeader } from "./DevHeader";
 import { API_BASE_URL } from "../../lib/api";
+import { DetailsTable } from "./DetailsTable";
 
 const BASE_URL = API_BASE_URL;
 
@@ -10,6 +11,7 @@ const SECTIONS = [
   { id: "overview", label: "Overview & concepts" },
   { id: "quickstart", label: "Quickstart" },
   { id: "sdk-reference", label: "SDK reference" },
+  { id: "details", label: "Details and types" },
   { id: "discovery", label: "Agent discovery" },
   { id: "account-linking", label: "Account linking" },
   { id: "http-api", label: "HTTP API" },
@@ -351,17 +353,36 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             <P>
               Returns the subset of <C>fields</C> that your app declared in the console <i>and</i> the person allowed for
               this grant (and has filled in). Anything else is simply omitted, not an error; fields your app didn&apos;t
-              declare are listed in <C>undeclaredFields</C> so you can spot a missing declaration. People declare
-              these details themselves; Assentry doesn&apos;t vouch for them. The personal app currently offers{" "}
-              <C>name</C>, <C>preferred_name</C>, <C>birthdate</C>, <C>email</C>, <C>phone_number</C>,{" "}
-              <C>address</C>, <C>job_title</C>, <C>employer</C> and <C>resume</C>.
+              declare are listed in <C>undeclaredFields</C> so you can spot a missing declaration. Required details
+              you declared but aren&apos;t getting are listed in <C>missing</C>: Assentry has asked the person for
+              them. People declare these details themselves; Assentry checks the format, not the truth. Each value
+              arrives in its type&apos;s format (see{" "}
+              <a href="#details" className="text-neutral-300 underline hover:text-white">
+                Details and types
+              </a>
+              ).
             </P>
             <CodeBlock
               label="ProfileResult"
               code={`type ProfileResult =
-  | { valid: true; profile: Record<string, unknown>; undeclaredFields?: string[] }
+  | {
+      valid: true;
+      profile: Record<string, ProfileValue>;
+      meta: Record<string, { source: "person" | "agent"; updatedAt: string }>;
+      missing?: string[];
+      undeclaredFields?: string[];
+    }
   | { valid: false; reason: DenialReason };`}
             />
+
+            <H3 id="sdk-downloadfile">assentry.downloadFile(file)</H3>
+            <Signature>{"downloadFile(file: ProfileFile): Promise<{ bytes: Buffer; contentType: string; filename: string }>"}</Signature>
+            <P>
+              Downloads a file detail. A file arrives in <C>getProfile</C> as{" "}
+              <C>{"{ filename, contentType, size, sha256, url, expiresAt }"}</C>; the <C>url</C> works once, within 5
+              minutes, and only with your API key, so a leaked link is useless. Each download appears in the
+              person&apos;s activity.
+            </P>
 
             <H3 id="sdk-requiregrant">requireGrant(assentry, options?)</H3>
             <Signature>{"requireGrant(assentry: Assentry, options?: RequireGrantOptions): RequestHandler"}</Signature>
@@ -428,6 +449,23 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
           </div>
 
           {/* ---------------- Discovery ---------------- */}
+          <div className="mt-16">
+            <H2 id="details">Details and types</H2>
+            <P>
+              In the console, tick the details your site needs and mark each <b>required</b> or <b>optional</b>. Every
+              detail has one type, and every type one format, so you always know exactly what you&apos;ll receive.
+              People fill their details in once; their agent can suggest missing ones, but nothing an agent suggests
+              is shared until the person confirms it (<C>meta.source</C> tells you which way it came).
+            </P>
+            <DetailsTable />
+            <H3>Your own details</H3>
+            <P>
+              For anything not in the list, add your own detail in the console: a key (e.g. <C>membership_number</C>),
+              a label and one of the types above. Your custom details are only ever shared with your site, and when a
+              person&apos;s agent signs in without one you marked required, Assentry asks the person to fill it in.
+            </P>
+          </div>
+
           <div className="mt-16">
             <H2 id="discovery">Agent discovery</H2>
             <P>
