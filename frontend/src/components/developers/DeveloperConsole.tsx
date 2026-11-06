@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../../lib/api";
 import { clearDevToken, devApi, getDevToken, type DeclaredField, type Developer, type DeveloperApp } from "../../lib/devApi";
 import { FIELD_TYPES, TYPE_LABELS, useStandardFields, type FieldType } from "../../lib/profileFields";
@@ -143,9 +143,18 @@ export function DeveloperConsole() {
   const [view, go] = useConsoleView();
   // Show the console straight away from what was loaded last time (this tab),
   // then refresh it from the server.
-  const [developer, setDeveloper] = useState<Developer | null>(() => readCache()?.developer ?? null);
-  const [apps, setApps] = useState<DeveloperApp[]>(() => readCache()?.apps ?? []);
-  const [loading, setLoading] = useState(() => !readCache());
+  const [developer, setDeveloper] = useState<Developer | null>(null);
+  const [apps, setApps] = useState<DeveloperApp[]>([]);
+  const [loading, setLoading] = useState(true);
+  // Read after hydration (so the first render matches the server's HTML) but
+  // before the browser paints, so there's no flash of placeholders.
+  useLayoutEffect(() => {
+    const cached = readCache();
+    if (cached) {
+      setDeveloper((d) => d ?? cached.developer);
+      setApps((a) => (a.length ? a : cached.apps));
+    }
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<RevealedKey | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -684,6 +693,44 @@ function CreateAppPage({ onCreated }: { onCreated: (app: DeveloperApp, apiKey: s
   );
 }
 
+// ---- Verified domain stamp ----
+
+/** A green seal: "Assentry · Verified domain" around a tick. Decorative; the text beside it says the same. */
+function VerifiedStamp({ size = 120 }: { size?: number }) {
+  const id = useId().replace(/:/g, "");
+  const small = size < 60;
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" role="img" aria-label="Verified domain" className="shrink-0 drop-shadow-[0_0_18px_rgba(52,211,153,0.25)]">
+      <defs>
+        <path id={`ring-${id}`} d="M60,60 m-40,0 a40,40 0 1,1 80,0 a40,40 0 1,1 -80,0" />
+        <linearGradient id={`fill-${id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#34d399" />
+          <stop offset="100%" stopColor="#059669" />
+        </linearGradient>
+      </defs>
+      {/* scalloped outer edge */}
+      <g fill={`url(#fill-${id})`}>
+        {Array.from({ length: 24 }, (_, i) => {
+          const a = (i / 24) * Math.PI * 2;
+          return <circle key={i} cx={60 + Math.cos(a) * 54} cy={60 + Math.sin(a) * 54} r={6.5} />;
+        })}
+        <circle cx="60" cy="60" r="54" />
+      </g>
+      <circle cx="60" cy="60" r="50" fill="none" stroke="#ecfdf5" strokeOpacity="0.55" strokeWidth="1.2" />
+      <circle cx="60" cy="60" r="30" fill="none" stroke="#ecfdf5" strokeOpacity="0.55" strokeWidth="1.2" />
+      {!small && (
+        /* The phrase twice, stretched to exactly one lap of the ring (2π × 40) so it never overlaps or gets cut off. */
+        <text fill="#ecfdf5" fontSize="8.5" fontWeight="700" fontFamily="ui-sans-serif, system-ui, sans-serif">
+          <textPath href={`#ring-${id}`} startOffset="0" textLength="250" lengthAdjust="spacing">
+            ASSENTRY • VERIFIED DOMAIN • ASSENTRY • VERIFIED DOMAIN •
+          </textPath>
+        </text>
+      )}
+      <path d="M45 61 l10 10 l21 -23" fill="none" stroke="#ffffff" strokeWidth={small ? 9 : 7} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // ---- One app ----
 
 function useAppAction() {
@@ -831,8 +878,8 @@ function OverviewSection({ app, go, onRotated }: { app: DeveloperApp; go: (v: Vi
           <Field label="Domain">
             <span className="font-mono">{app.domain ?? "Not set"}</span>
             {app.domainVerifiedAt ? (
-              <span className="ml-2 inline-flex items-center gap-1 text-xs text-neutral-200">
-                <BadgeCheck className="h-3.5 w-3.5" /> Verified
+              <span className="ml-2 inline-flex items-center gap-1.5 align-middle text-xs font-semibold text-emerald-300">
+                <VerifiedStamp size={30} /> Verified
               </span>
             ) : (
               <span className="ml-2 text-xs text-amber-300">Not verified</span>
@@ -861,14 +908,26 @@ function DomainSection({ app, onChanged }: { app: DeveloperApp; onChanged: () =>
 
   return (
     <div className="space-y-6">
+      {app.domainVerifiedAt && app.domain ? (
+        <div className="flex flex-col items-center gap-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/[0.06] p-6 sm:flex-row sm:p-8">
+          <VerifiedStamp size={150} />
+          <div className="min-w-0 text-center sm:text-left">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">Domain verified</p>
+            <p className="mt-2 break-all font-mono text-2xl font-semibold text-white">{app.domain}</p>
+            <p className="mt-1 text-sm text-emerald-200/80">
+              Verified on{" "}
+              {new Date(app.domainVerifiedAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
+            </p>
+            <p className="mt-4 text-sm text-slate-300">
+              Agents are shown this domain when they sign in, and credentials issued for your site only work here.
+            </p>
+          </div>
+        </div>
+      ) : (
       <Card>
         <div className="flex flex-wrap items-center gap-3">
           <span className="font-mono text-base text-white">{app.domain ?? "No domain set"}</span>
-          {app.domainVerifiedAt ? (
-            <Badge tone="success">Verified {new Date(app.domainVerifiedAt).toLocaleDateString()}</Badge>
-          ) : (
-            <Badge tone="warning">Not verified</Badge>
-          )}
+          <Badge tone="warning">Not verified</Badge>
         </div>
         {!app.domainVerifiedAt && app.domain && (
           <div className="mt-4 text-sm text-slate-300">
@@ -887,12 +946,8 @@ function DomainSection({ app, onChanged }: { app: DeveloperApp; onChanged: () =>
             </div>
           </div>
         )}
-        {app.domainVerifiedAt && (
-          <p className="mt-3 text-sm text-slate-400">
-            Agents are shown this domain when they sign in, and credentials issued for your site only work here.
-          </p>
-        )}
       </Card>
+      )}
 
       <Card>
         <h3 className="mb-1 text-sm font-semibold text-white">Change domain</h3>
