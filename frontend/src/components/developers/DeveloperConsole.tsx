@@ -45,7 +45,7 @@ function errorMessage(err: unknown) {
 const APP_SECTIONS = [
   { id: "overview", label: "Overview", icon: LayoutGrid },
   { id: "domain", label: "Domain", icon: Globe },
-  { id: "details", label: "Details", icon: ListChecks },
+  { id: "details", label: "Required data", icon: ListChecks },
   { id: "linking", label: "Account linking", icon: Link2 },
   { id: "settings", label: "Settings", icon: Settings },
 ] as const;
@@ -544,7 +544,7 @@ function OverviewSection({ app, go, onRotated }: { app: DeveloperApp; go: (v: Vi
   const steps = [
     { done: true, label: "Create the app and store its API key on your server", section: "overview" as AppSection },
     { done: Boolean(app.domainVerifiedAt), label: "Verify your domain, so agents can sign in", section: "domain" as AppSection },
-    { done: app.fields.length > 0, label: "Choose the details your site needs", section: "details" as AppSection },
+    { done: app.fields.length > 0, label: "Choose the data your site requires", section: "details" as AppSection },
   ];
 
   async function rotate() {
