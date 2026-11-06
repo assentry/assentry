@@ -98,8 +98,10 @@ const assentry = new Assentry({
 const app = express();
 app.use(express.json());
 
-// Makes your whole site discoverable to agents (see "Agent discovery").
-app.use(assentryDiscovery({ partnerName: "Acme" }));
+// Lets agents find and sign in to your site (see "Agent discovery"). Passing
+// your client turns on browser sign-in: pages show a one-time sign-in code
+// the agent approves through Assentry, and serves your domain-verification proof.
+app.use(assentryDiscovery({ partnerName: "Acme", assentry }));
 
 app.get(
   "/account",
@@ -107,11 +109,13 @@ app.get(
     discover: { path: "/account", method: "GET", description: "The person's account page" },
   }),
   async (req: AssentryRequest, res) => {
-    // req.assentryGrant = { userId, agentId, expiresAt } — who the agent acts for.
-    const profile = await assentry.getProfile(req.assentryCredential!, ["name", "email"]);
+    // req.assentryGrant = { userId, agentId, expiresAt }: who the agent acts for.
+    // userId is stable for this person and specific to you: key your accounts on it.
+    const result = await assentry.getProfile(req.assentryCredential!, ["name", "email"]);
     res.json({
       actingFor: req.assentryGrant!.userId,
-      profile: profile.valid ? profile.profile : {},
+      profile: result.valid ? result.profile : {},
+      stillNeeded: result.valid ? result.missing ?? [] : [],
     });
   }
 );
@@ -144,6 +148,11 @@ const DISCOVERY_DOC = `{
     "header": "Authorization",
     "scheme": "Bearer",
     "instructions": "Present the Assentry credential your grant issued as 'Authorization: Bearer <credential>' on the routes below. No login, session or signup is needed or should be attempted."
+  },
+  "browser_sign_in": {
+    "code_header": "Assentry-Sign-In-Code",
+    "sign_out_path": "/assentry/sign-out",
+    "instructions": "If you're driving a browser, pages show an 'Assentry sign-in code'. Approve it with your Assentry connection's approve_sign_in tool, passing this site's domain from the address bar; the page then signs you in by itself. Never type a credential into this site."
   },
   "routes": [
     { "path": "/account", "method": "GET", "description": "The person's account page" }
@@ -290,22 +299,34 @@ export function DocsArticle() {
                 <Link href="/developers/console" className="text-neutral-300 hover:text-neutral-200">
                   console
                 </Link>
-                , create an app with your site&apos;s domain, tick the details your site needs, and copy its API key.
-                It&apos;s shown once: store it as a secret on your server. Once the site is deployed with the SDK,
-                click <b>Verify domain</b>.
+                , create an app with your site&apos;s exact domain (e.g. <C>shop.example.com</C>) and copy its API
+                key. It&apos;s shown once: store it as a secret on your server.
+              </li>
+              <li>
+                Under <b>Required data</b>, tick what your site needs and mark each detail required or optional.
               </li>
               <li>Install the SDK:</li>
             </ol>
             <CodeBlock code="npm install @assentry/sdk" label="Terminal" />
             <P>Set your key as an environment variable on your server (never in browser code):</P>
             <CodeBlock code={"ASSENTRY_API_KEY=assentry_your_key_here"} label=".env" />
-            <P>Protect a route, and make the site discoverable:</P>
+            <P>Make the site discoverable, and protect a route:</P>
             <CodeBlock code={QUICKSTART_CODE} label="server.ts" />
+            <ol start={5} className="mt-4 list-decimal space-y-3 pl-5 text-slate-300">
+              <li>
+                Deploy, then click <b>Verify domain</b> in the console. The SDK already serves the proof Assentry
+                checks; until the domain is verified, agents can&apos;t sign in to your site.
+              </li>
+            </ol>
             <Note>
               <C>baseUrl</C> defaults to <C>http://localhost:4000</C> (for running Assentry locally). In
               production always set it to <C>{BASE_URL}</C>.
             </Note>
-            <P>That&apos;s it. A request without a credential now gets a standard challenge:</P>
+            <P>
+              That&apos;s it. A browser agent sees a sign-in code at the bottom of your pages and approves it through
+              its Assentry connection; the page then signs it in by itself. An agent calling your site directly gets
+              a standard challenge:
+            </P>
             <CodeBlock
               label="Response with no credential"
               code={`HTTP/1.1 401 Unauthorized
@@ -430,10 +451,21 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             <CodeBlock code={SESSION_OR_CREDENTIAL_CODE} label="server.ts" />
 
             <H3 id="sdk-discovery">assentryDiscovery(options)</H3>
-            <Signature>{"assentryDiscovery({ partnerName: string }): RequestHandler"}</Signature>
+            <Signature>{"assentryDiscovery({ partnerName: string, assentry?: Assentry }): RequestHandler"}</Signature>
             <P>
-              Mount once, before your routes. See <a href="#discovery" className="text-neutral-300 hover:text-neutral-200">Agent discovery</a>.
+              Mount once, before your routes. Always pass <C>assentry</C>: without it, only agents that send an{" "}
+              <C>Authorization</C> header can get in, browser agents can&apos;t, and your domain can&apos;t be verified.
+              See <a href="#discovery" className="text-neutral-300 hover:text-neutral-200">Agent discovery</a>.
             </P>
+            <Table
+              head={["With assentry, it also serves", "What for"]}
+              rows={[
+                [<C key="1">sign-in code on HTML pages</C>, "For visitors who aren't signed in: the code, in visible text, a meta tag and an Assentry-Sign-In-Code header."],
+                [<C key="2">/assentry/sign-in/status</C>, "The page checks this every few seconds and moves on once the agent has approved the code."],
+                [<C key="3">/assentry/sign-out</C>, "Ends the agent's browser session on your site."],
+                [<C key="4">/.well-known/assentry-domain-verification</C>, "The proof Assentry fetches when you click Verify domain."],
+              ]}
+            />
 
             <H3 id="sdk-declare">declareDiscoverableRoute(route)</H3>
             <Signature>{'declareDiscoverableRoute({ path: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", description: string }): void'}</Signature>
@@ -450,12 +482,26 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
               <C>getAccountLinkUrl</C> throws if the client was created without <C>partnerId</C>.
             </P>
 
+            <H3 id="sdk-signin">Lower-level sign-in calls</H3>
+            <Signature>{"startSignIn(): Promise<{ requestId: string; code: string; expiresAt: string }>"}</Signature>
+            <Signature>{"collectSignIn(requestId: string): Promise<SignInCollectResult>"}</Signature>
+            <Signature>{"getDomainVerificationToken(): Promise<string | null>"}</Signature>
+            <P>
+              What <C>assentryDiscovery</C> uses under the hood, for frameworks other than Express. Start a sign-in,
+              show the code, and poll <C>collectSignIn</C>: once the agent approves it, you get the credential exactly
+              once (<C>{'{ status: "approved", credential, userId, agentId, expiresAt }'}</C>); before that,{" "}
+              <C>pending</C>; afterwards, <C>expired</C> or <C>already_collected</C>. Serve the verification token as
+              plain text at <C>/.well-known/assentry-domain-verification</C>.
+            </P>
+
             <H3 id="sdk-errors">AssentryRequestError</H3>
             <Signature>{"class AssentryRequestError extends Error { status: number }"}</Signature>
             <P>
-              Thrown by the client when Assentry itself rejects the call — an invalid/revoked API key (401), a
-              malformed request (400), or an invalid link code (400). A credential that simply isn&apos;t valid
-              is <b>not</b> an exception: it&apos;s <C>{"{ valid: false, reason }"}</C>.
+              Thrown by <C>exchangeLinkCode</C>, <C>downloadFile</C> and the lower-level sign-in calls when Assentry
+              rejects them: an invalid or revoked API key (401), a malformed request (400), an invalid link code
+              (400), or a download link that was already used or has expired. <C>verify</C> and <C>getProfile</C>{" "}
+              never throw: a credential that isn&apos;t valid, or an Assentry that can&apos;t be reached, comes back as{" "}
+              <C>{"{ valid: false, reason }"}</C>.
             </P>
           </div>
 
@@ -480,24 +526,52 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
           <div className="mt-16">
             <H2 id="discovery">Agent discovery</H2>
             <P>
-              An agent told &ldquo;go check my account on acme.com&rdquo; can&apos;t know which of your routes accept a
-              Assentry credential. Without help it finds only your human login page — and a well-behaved agent
-              won&apos;t try to get past that. <C>assentryDiscovery</C> fixes this on every page of your site:
+              An agent told &ldquo;go check my account on acme.com&rdquo; can&apos;t know your site accepts Assentry, and a
+              well-behaved agent won&apos;t try to get past your login page. <C>assentryDiscovery</C> tells it, on every
+              page, and gives it a way in that never involves typing anything into your site.
             </P>
+            <H3>Agents in a browser: the sign-in code</H3>
+            <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-slate-300">
+              <li>
+                When someone who isn&apos;t signed in opens one of your pages, the SDK asks Assentry (with your API
+                key) for a one-time code and shows it at the bottom of the page: <C>Assentry sign-in code: asq_…</C>.
+              </li>
+              <li>
+                The agent approves the code through its own Assentry connection, telling Assentry the domain in its
+                address bar. Assentry only approves it if the code was issued to that <b>verified</b> domain, so a
+                code copied from another site is refused. Approving is also what ties the code to the person the
+                agent acts for.
+              </li>
+              <li>
+                Your page notices within a few seconds; your server collects the result from Assentry, keeps the
+                credential in an httpOnly cookie, and the page moves on to your first protected route.{" "}
+                <C>getCredentialFromRequest</C> and <C>requireGrant</C> read that cookie, so your routes need no changes.
+              </li>
+            </ol>
+            <P>
+              Codes are random (52 characters), single-use, tied to your site and valid for 5 minutes, and each
+              visitor gets their own. Every later request is still checked with Assentry, so if the person withdraws
+              permission or ends the sign-in, the agent is signed out on its next page. Your page uses a small inline
+              script to check back; if your Content Security Policy blocks inline scripts, allow it.
+            </P>
+            <Note>
+              Browser sign-in needs a verified domain. Until you verify yours in the console, no codes are shown.
+            </Note>
+            <H3>Agents calling your site directly</H3>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-slate-300">
               <li>
-                Every response — including 404s and redirects — carries{" "}
+                Every response, including 404s and redirects, carries{" "}
                 <C>{'Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"'}</C>, so an agent sees it
                 wherever it lands first.
               </li>
               <li>
-                <C>/.well-known/assentry.json</C> describes how to present a credential and lists every route
-                declared with <C>discover</C> or <C>declareDiscoverableRoute</C>. There&apos;s no separate list to
-                keep in sync.
+                <C>/.well-known/assentry.json</C> explains both ways in and lists every route declared with{" "}
+                <C>discover</C> or <C>declareDiscoverableRoute</C>. There&apos;s no separate list to keep in sync.
               </li>
               <li>
-                Routes protected by <C>requireGrant</C> answer a credential-less request with the standard{" "}
-                <C>WWW-Authenticate: Bearer</C> challenge.
+                The agent fetches a credential for your domain from Assentry and sends it as{" "}
+                <C>Authorization: Bearer &lt;credential&gt;</C>. Routes protected by <C>requireGrant</C> answer a
+                request without one with the standard <C>WWW-Authenticate: Bearer</C> challenge.
               </li>
             </ul>
             <CodeBlock code={DISCOVERY_DOC} label="GET /.well-known/assentry.json" />
@@ -550,8 +624,9 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
           <div className="mt-16">
             <H2 id="http-api">HTTP API</H2>
             <P>
-              Not using Node? The SDK is a thin wrapper over three JSON endpoints. Call them from your
-              server — never from a browser — with your API key in the <C>x-assentry-api-key</C> header.
+              Not using Node? The SDK is a thin wrapper over these JSON endpoints. Call them from your server, never
+              from a browser, with your API key in the <C>x-assentry-api-key</C> header (except the two public ones at
+              the end).
             </P>
             <CodeBlock code={BASE_URL} label="Base URL" />
 
@@ -565,7 +640,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             />
             <CodeBlock
               label="200 — valid"
-              code={`{ "valid": true, "userId": "…", "agentId": "…", "expiresAt": "2026-11-04T09:00:00.000Z" }`}
+              code={`{ "valid": true, "userId": "usr_…", "agentId": "agt_…", "expiresAt": "2026-11-04T09:00:00.000Z" }`}
             />
             <CodeBlock label="200 — not valid" code={`{ "valid": false, "reason": "revoked" }`} />
 
@@ -577,10 +652,62 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
   -H "x-assentry-api-key: $ASSENTRY_API_KEY" \\
   -d '{"credential":"<credential>","fields":["name","email"]}'`}
             />
-            <CodeBlock label="200 — valid" code={`{ "valid": true, "profile": { "name": "Ada Lovelace", "email": "ada@example.com" } }`} />
+            <CodeBlock
+              label="200 — valid"
+              code={`{
+  "valid": true,
+  "profile": { "name": "Ada Lovelace", "email": "ada@example.com" },
+  "meta": {
+    "name": { "source": "person", "updatedAt": "2026-11-06T09:00:00.000Z" },
+    "email": { "source": "agent", "updatedAt": "2026-11-06T09:05:00.000Z" }
+  },
+  "missing": ["phone_number"]
+}`}
+            />
             <P>
-              <C>fields</C> must contain at least one name. Unconsented fields are left out of <C>profile</C>.
-              An invalid credential returns <C>{'{ "valid": false, "reason": … }'}</C> like <C>/verify</C>.
+              <C>fields</C> must contain at least one key. You only get keys you declared under Required data that the
+              person allowed and has filled in; others are left out. <C>missing</C> lists required keys you aren&apos;t
+              getting (Assentry has asked the person), <C>undeclaredFields</C> any you asked for but didn&apos;t declare.
+              File details come as <C>{"{ filename, contentType, size, sha256, url, expiresAt }"}</C>. An invalid
+              credential returns <C>{'{ "valid": false, "reason": … }'}</C> like <C>/verify</C>.
+            </P>
+
+            <H3 id="api-files">GET /files/download/:token</H3>
+            <P>
+              The <C>url</C> of a file detail. Send your API key; the link works once, within 5 minutes, and returns
+              the file as a download (<C>Content-Disposition: attachment</C>). 401 without your key, 404 once used or
+              expired.
+            </P>
+
+            <H3 id="api-sign-in">POST /sign-in-requests · POST /sign-in-requests/collect</H3>
+            <CodeBlock
+              label="Start a browser sign-in"
+              code={`curl -X POST ${BASE_URL}/sign-in-requests -H "x-assentry-api-key: $ASSENTRY_API_KEY"
+# 201 { "requestId": "…", "code": "asq_…", "expiresAt": "…" }
+# 403 if your app's domain isn't verified yet`}
+            />
+            <CodeBlock
+              label="Collect it"
+              code={`curl -X POST ${BASE_URL}/sign-in-requests/collect \
+  -H "Content-Type: application/json" -H "x-assentry-api-key: $ASSENTRY_API_KEY" \
+  -d '{"requestId":"…"}'
+# { "status": "pending" }   until the agent approves the code
+# { "status": "approved", "credential": "…", "userId": "usr_…", "agentId": "agt_…", "expiresAt": "…" }   once
+# { "status": "expired" | "already_collected" | "not_found" | "denied" }`}
+            />
+
+            <H3 id="api-domain">GET /domain-verification</H3>
+            <P>
+              Returns <C>{'{ "domain": "…", "token": "…" }'}</C>: serve <C>token</C> as plain text at{" "}
+              <C>https://your-domain/.well-known/assentry-domain-verification</C>, then click Verify domain.
+            </P>
+
+            <H3 id="api-public">Public: GET /fields · GET /.well-known/jwks.json</H3>
+            <P>
+              <C>/fields</C> lists the standard details with their types and formats (the table in Details and
+              types). <C>/.well-known/jwks.json</C> publishes the public keys credentials are signed with (ES256),
+              in case you want to check a signature yourself; still call <C>/verify</C>, which also catches withdrawn
+              permission.
             </P>
 
             <H3 id="api-link-token">POST /link/token</H3>
@@ -591,7 +718,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
   -H "x-assentry-api-key: $ASSENTRY_API_KEY" \\
   -d '{"code":"<code from your callback>"}'`}
             />
-            <CodeBlock label="200" code={`{ "userId": "…" }`} />
+            <CodeBlock label="200" code={`{ "userId": "usr_…" }`} />
             <P>
               The link flow itself starts with a browser redirect (not an API call) to{" "}
               <C>{`${BASE_URL}/link/authorize?partner_id=<Public ID>&redirect_uri=<registered URI>&state=<anything>`}</C>.
@@ -606,6 +733,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
                 ["400", <C key="3">{'{"error":{ … }}'}</C>, "Malformed body on /verify or /profile (field-level details included)."],
                 ["400", <C key="4">{'{"error":"invalid_request"}'}</C>, "/link/token: missing code."],
                 ["400", <C key="5">{'{"error":"invalid_grant"}'}</C>, "/link/token: code unknown, already used, expired, or issued to another app."],
+                ["403", <C key="6">{"{\"error\":\"this app's domain isn't verified yet…\"}"}</C>, "/sign-in-requests: verify your domain in the console first."],
               ]}
             />
           </div>
