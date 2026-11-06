@@ -1,14 +1,31 @@
 "use client";
 
-import { AlertTriangle, BadgeCheck, BookOpen, KeyRound, LogOut, Plus, RotateCw, ShieldOff } from "lucide-react";
+import {
+  AlertTriangle,
+  BadgeCheck,
+  BookOpen,
+  ChevronRight,
+  Globe,
+  KeyRound,
+  LayoutGrid,
+  Link2,
+  ListChecks,
+  LogOut,
+  Menu,
+  Plus,
+  RotateCw,
+  Settings,
+  ShieldOff,
+  X,
+} from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ApiError } from "../../lib/api";
 import { clearDevToken, devApi, getDevToken, type DeclaredField, type Developer, type DeveloperApp } from "../../lib/devApi";
 import { FIELD_TYPES, TYPE_LABELS, useStandardFields, type FieldType } from "../../lib/profileFields";
+import { Logo } from "../Logo";
 import { Badge, Button, Card, EmptyState, Input, Label, Select } from "../ui";
-import { DevHeader } from "./DevHeader";
 
 interface RevealedKey {
   appName: string;
@@ -21,13 +38,47 @@ function errorMessage(err: unknown) {
   return err instanceof ApiError ? err.message : "Something went wrong";
 }
 
+// ---- Navigation ----
+// The console's place is kept in the URL (?view=new, ?app=<id>&section=domain)
+// so every page can be linked to and the back button works.
+
+const APP_SECTIONS = [
+  { id: "overview", label: "Overview", icon: LayoutGrid },
+  { id: "domain", label: "Domain", icon: Globe },
+  { id: "details", label: "Details", icon: ListChecks },
+  { id: "linking", label: "Account linking", icon: Link2 },
+  { id: "settings", label: "Settings", icon: Settings },
+] as const;
+type AppSection = (typeof APP_SECTIONS)[number]["id"];
+
+type View = { kind: "apps" } | { kind: "new" } | { kind: "app"; id: string; section: AppSection };
+
+function useConsoleView(): [View, (v: View) => void] {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const appId = params.get("app");
+  const section = (APP_SECTIONS.find((s) => s.id === params.get("section"))?.id ?? "overview") as AppSection;
+  const view: View = appId ? { kind: "app", id: appId, section } : params.get("view") === "new" ? { kind: "new" } : { kind: "apps" };
+  const go = useCallback(
+    (v: View) => {
+      const q = v.kind === "app" ? `?app=${v.id}${v.section !== "overview" ? `&section=${v.section}` : ""}` : v.kind === "new" ? "?view=new" : "";
+      router.push(`${pathname}${q}`);
+    },
+    [router, pathname]
+  );
+  return [view, go];
+}
+
 export function DeveloperConsole() {
   const router = useRouter();
+  const [view, go] = useConsoleView();
   const [developer, setDeveloper] = useState<Developer | null>(null);
   const [apps, setApps] = useState<DeveloperApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<RevealedKey | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const loadApps = useCallback(async () => {
     const data = await devApi.get<{ apps: DeveloperApp[] }>("/developer/apps");
@@ -57,79 +108,263 @@ export function DeveloperConsole() {
     })();
   }, [router, loadApps]);
 
+  useEffect(() => setMobileOpen(false), [view.kind, view.kind === "app" ? view.id + view.section : ""]);
+
   function logOut() {
     clearDevToken();
     router.push("/developers/login");
   }
 
   if (loading || !developer) {
-    return (
-      <div className="min-h-screen bg-navy-950">
-        <DevHeader />
-        <div className="mx-auto max-w-4xl px-6 py-16 text-sm text-slate-400">{error ?? "Loading your console…"}</div>
-      </div>
-    );
+    return <div className="min-h-screen bg-navy-950 px-6 py-16 text-sm text-slate-400">{error ?? "Loading your console…"}</div>;
   }
 
+  const app = view.kind === "app" ? apps.find((a) => a.id === view.id) : undefined;
+  const title =
+    view.kind === "new" ? "Create an app" : view.kind === "app" ? (app ? `${app.name} · ${APP_SECTIONS.find((s) => s.id === view.section)!.label}` : "App not found") : "Apps";
+
+  const sidebar = (
+    <ConsoleSidebar
+      apps={apps}
+      view={view}
+      go={go}
+      email={developer.email}
+      onLogOut={logOut}
+      onClose={() => setMobileOpen(false)}
+    />
+  );
+
   return (
-    <div className="relative min-h-screen bg-navy-950">
-      <div className="grid-texture pointer-events-none absolute inset-0 opacity-30" />
-      <DevHeader />
-
-      <main className="relative mx-auto max-w-4xl px-6 py-10">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-300">Developer console</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">Your apps & API keys</h1>
-            <p className="mt-1 text-sm text-slate-400">Signed in as {developer.email}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/developers/docs#quickstart"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm font-medium text-slate-200 hover:bg-white/10"
-            >
-              <BookOpen className="h-4 w-4" /> Quickstart
-            </Link>
-            <Button variant="ghost" onClick={logOut}>
-              <LogOut className="h-4 w-4" /> Log out
-            </Button>
-          </div>
+    <div className="flex min-h-screen flex-col bg-navy-950 lg:flex-row">
+      {/* Mobile top bar */}
+      <header className="flex items-center justify-between border-b border-white/10 bg-navy-900 px-4 py-3 lg:hidden">
+        <ConsoleBrand />
+        <button onClick={() => setMobileOpen(true)} className="rounded-md p-1.5 text-slate-400 hover:bg-white/5" aria-label="Open menu">
+          <Menu className="h-5 w-5" />
+        </button>
+      </header>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col bg-navy-900 px-4 py-6 shadow-xl">{sidebar}</aside>
         </div>
+      )}
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-white/10 bg-navy-900 px-4 py-6 lg:flex">
+        {sidebar}
+      </aside>
 
-        {revealed && <RevealedKeyNotice revealed={revealed} onDismiss={() => setRevealed(null)} />}
+      <div className="min-w-0 flex-1">
+        <header className="sticky top-0 z-10 hidden border-b border-white/10 bg-navy-950/80 px-8 py-4 backdrop-blur lg:block">
+          <h2 className="text-sm font-medium text-slate-400">{title}</h2>
+        </header>
+        <main className="mx-auto max-w-4xl px-4 py-6 sm:px-8 sm:py-8">
+          {revealed && <RevealedKeyNotice revealed={revealed} onDismiss={() => setRevealed(null)} />}
 
-        <CreateAppCard
-          onCreated={async (app, apiKey) => {
-            setRevealed({ appName: app.name, apiKey, publicId: app.publicId, rotated: false });
-            await loadApps();
-          }}
-        />
-
-        <section className="mt-8">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Apps</h2>
-          {apps.length === 0 ? (
-            <Card>
-              <EmptyState>No apps yet. Create one above to get your first API key.</EmptyState>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {apps.map((app) => (
-                <AppCard
-                  key={app.id}
-                  app={app}
-                  onRotated={async (apiKey) => {
-                    setRevealed({ appName: app.name, apiKey, publicId: app.publicId, rotated: true });
-                    await loadApps();
-                  }}
-                  onChanged={loadApps}
-                />
-              ))}
-            </div>
+          {view.kind === "apps" && <AppsOverview apps={apps} go={go} />}
+          {view.kind === "new" && (
+            <CreateAppPage
+              onCreated={async (created, apiKey) => {
+                setRevealed({ appName: created.name, apiKey, publicId: created.publicId, rotated: false });
+                await loadApps();
+                go({ kind: "app", id: created.id, section: "overview" });
+              }}
+            />
           )}
-        </section>
-      </main>
+          {view.kind === "app" &&
+            (app ? (
+              <AppPage
+                key={app.id + view.section}
+                app={app}
+                section={view.section}
+                go={go}
+                onChanged={loadApps}
+                onRotated={async (apiKey) => {
+                  setRevealed({ appName: app.name, apiKey, publicId: app.publicId, rotated: true });
+                  await loadApps();
+                }}
+              />
+            ) : (
+              <Card>
+                <EmptyState>That app doesn&apos;t exist, or isn&apos;t yours.</EmptyState>
+              </Card>
+            ))}
+        </main>
+      </div>
     </div>
   );
+}
+
+function ConsoleBrand() {
+  return (
+    <div className="flex items-center gap-2">
+      <Logo />
+      <span className="rounded-full border border-white/30 bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-200">
+        Developers
+      </span>
+    </div>
+  );
+}
+
+function NavButton({ active, onClick, icon: Icon, children, indent = false }: { active: boolean; onClick: () => void; icon?: typeof LayoutGrid; children: ReactNode; indent?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${indent ? "pl-9" : ""} ${
+        active ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+      }`}
+    >
+      {Icon && <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />}
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+    </button>
+  );
+}
+
+function ConsoleSidebar({
+  apps,
+  view,
+  go,
+  email,
+  onLogOut,
+  onClose,
+}: {
+  apps: DeveloperApp[];
+  view: View;
+  go: (v: View) => void;
+  email: string;
+  onLogOut: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="mb-8 flex items-center justify-between px-2">
+        <ConsoleBrand />
+        <button onClick={onClose} className="rounded-md p-1 text-slate-400 hover:bg-white/5 lg:hidden" aria-label="Close menu">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+        <NavButton active={view.kind === "apps"} onClick={() => go({ kind: "apps" })} icon={LayoutGrid}>
+          Apps
+        </NavButton>
+        <NavButton active={view.kind === "new"} onClick={() => go({ kind: "new" })} icon={Plus}>
+          Create an app
+        </NavButton>
+
+        {apps.length > 0 && <p className="px-3 pb-1 pt-5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Your apps</p>}
+        {apps.map((a) => {
+          const open = view.kind === "app" && view.id === a.id;
+          return (
+            <div key={a.id}>
+              <button
+                onClick={() => go({ kind: "app", id: a.id, section: "overview" })}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
+                  open ? "text-white" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                }`}
+              >
+                <ChevronRight className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
+                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                <AppStatusDot app={a} />
+              </button>
+              {open && (
+                <div className="mb-1 space-y-0.5">
+                  {APP_SECTIONS.map((s) => (
+                    <NavButton
+                      key={s.id}
+                      indent
+                      active={view.section === s.id}
+                      onClick={() => go({ kind: "app", id: a.id, section: s.id })}
+                      icon={s.icon}
+                    >
+                      {s.label}
+                    </NavButton>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      <div className="mt-4 space-y-1 border-t border-white/10 pt-4">
+        <Link href="/developers/docs" className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200">
+          <BookOpen className="h-4 w-4" /> Docs
+        </Link>
+        <p className="truncate px-3 pt-2 text-xs text-slate-500">{email}</p>
+        <button onClick={onLogOut} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200">
+          <LogOut className="h-4 w-4" /> Log out
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Green: ready for agents. Amber: domain not verified yet. Grey: revoked. */
+function AppStatusDot({ app }: { app: DeveloperApp }) {
+  const tone = app.revokedAt ? "bg-slate-600" : app.domainVerifiedAt ? "bg-emerald-400" : "bg-amber-300";
+  const label = app.revokedAt ? "Revoked" : app.domainVerifiedAt ? "Ready" : "Domain not verified";
+  return <span className={`h-2 w-2 shrink-0 rounded-full ${tone}`} title={label} aria-label={label} />;
+}
+
+// ---- Pages ----
+
+function PageHeading({ title, children, actions }: { title: string; children?: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold text-white">{title}</h1>
+        {children && <p className="mt-1 text-sm text-slate-400">{children}</p>}
+      </div>
+      {actions}
+    </div>
+  );
+}
+
+function AppsOverview({ apps, go }: { apps: DeveloperApp[]; go: (v: View) => void }) {
+  return (
+    <div>
+      <PageHeading
+        title="Your apps"
+        actions={
+          <Button onClick={() => go({ kind: "new" })}>
+            <Plus className="h-4 w-4" /> Create an app
+          </Button>
+        }
+      >
+        One app per website that accepts Assentry agents. Each has its own API key, domain and the details it needs.
+      </PageHeading>
+      {apps.length === 0 ? (
+        <Card>
+          <EmptyState>No apps yet. Create one to get your first API key.</EmptyState>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {apps.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => go({ kind: "app", id: a.id, section: "overview" })}
+              className={`rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-left transition-colors hover:border-white/25 hover:bg-white/[0.06] ${a.revokedAt ? "opacity-60" : ""}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate font-semibold text-white">{a.name}</span>
+                <AppStatusBadge app={a} />
+              </div>
+              <p className="mt-1 truncate font-mono text-xs text-slate-400">{a.domain ?? "No domain set"}</p>
+              <p className="mt-3 text-xs text-slate-500">
+                {a.fields.length} detail{a.fields.length === 1 ? "" : "s"} declared · created {new Date(a.createdAt).toLocaleDateString()}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AppStatusBadge({ app }: { app: DeveloperApp }) {
+  if (app.revokedAt) return <Badge tone="danger">Revoked</Badge>;
+  if (!app.domainVerifiedAt) return <Badge tone="warning">Verify domain</Badge>;
+  return <Badge tone="success">Ready</Badge>;
 }
 
 function RevealedKeyNotice({ revealed, onDismiss }: { revealed: RevealedKey; onDismiss: () => void }) {
@@ -142,7 +377,7 @@ function RevealedKeyNotice({ revealed, onDismiss }: { revealed: RevealedKey; onD
   }
 
   return (
-    <div className="mt-6 rounded-2xl border border-white/30 bg-white/5 p-5">
+    <div className="mb-6 rounded-2xl border border-white/30 bg-white/5 p-5">
       <p className="flex items-center gap-2 text-sm font-semibold text-neutral-200">
         <KeyRound className="h-4 w-4" />
         {revealed.rotated ? `New API key for “${revealed.appName}”` : `API key for “${revealed.appName}”`}
@@ -154,9 +389,7 @@ function RevealedKeyNotice({ revealed, onDismiss }: { revealed: RevealedKey; onD
         {revealed.rotated && " The previous key has already stopped working."}
       </p>
       <div className="mt-3 flex items-center gap-2">
-        <code className="flex-1 overflow-x-auto rounded-lg bg-navy-950 px-3 py-2 text-xs text-slate-200">
-          {revealed.apiKey}
-        </code>
+        <code className="flex-1 overflow-x-auto rounded-lg bg-navy-950 px-3 py-2 text-xs text-slate-200">{revealed.apiKey}</code>
         <Button variant="secondary" onClick={copy} type="button">
           {copied ? "Copied" : "Copy"}
         </Button>
@@ -173,7 +406,7 @@ function RevealedKeyNotice({ revealed, onDismiss }: { revealed: RevealedKey; onD
   );
 }
 
-function CreateAppCard({ onCreated }: { onCreated: (app: DeveloperApp, apiKey: string) => Promise<void> }) {
+function CreateAppPage({ onCreated }: { onCreated: (app: DeveloperApp, apiKey: string) => Promise<void> }) {
   const [name, setName] = useState("");
   const [domain, setDomain] = useState("");
   const [busy, setBusy] = useState(false);
@@ -189,8 +422,6 @@ function CreateAppCard({ onCreated }: { onCreated: (app: DeveloperApp, apiKey: s
         name: name.trim(),
         domain: domain.trim(),
       });
-      setName("");
-      setDomain("");
       await onCreated(data.app, data.apiKey);
     } catch (err) {
       setError(errorMessage(err));
@@ -200,287 +431,358 @@ function CreateAppCard({ onCreated }: { onCreated: (app: DeveloperApp, apiKey: s
   }
 
   return (
-    <Card className="mt-6">
-      <h2 className="text-sm font-semibold text-white">Create an app</h2>
-      <p className="mt-1 text-sm text-slate-400">
-        One app per website or service that accepts Assentry agents. Each app gets its own API key. Agents are shown the
-        site&apos;s domain, once you&apos;ve verified it, so they can check it against the page they&apos;re on.
+    <div>
+      <PageHeading title="Create an app">
+        One app per website or service that accepts Assentry agents. Agents are shown the site&apos;s domain, once
+        you&apos;ve verified it, so they can check it against the page they&apos;re on.
+      </PageHeading>
+      <Card>
+        <form onSubmit={create} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="new-app-name">App name</Label>
+              <Input id="new-app-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme" required />
+            </div>
+            <div>
+              <Label htmlFor="new-app-domain">Site domain</Label>
+              <Input id="new-app-domain" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="shop.example.com" required />
+            </div>
+          </div>
+          <Button type="submit" disabled={busy}>
+            <Plus className="h-4 w-4" /> {busy ? "Creating…" : "Create app"}
+          </Button>
+          {error && <p className="text-sm text-rose-400">{error}</p>}
+        </form>
+      </Card>
+      <p className="mt-4 text-sm text-slate-500">
+        Next you&apos;ll get the API key, then verify the domain and choose the details your site needs.
       </p>
-      <form onSubmit={create} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <Label htmlFor="new-app-name">App name</Label>
-          <Input id="new-app-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme" required />
+    </div>
+  );
+}
+
+// ---- One app ----
+
+function useAppAction() {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const run = useCallback(async (fn: () => Promise<unknown>, done?: string) => {
+    setBusy(true);
+    setNote(null);
+    try {
+      await fn();
+      if (done) setNote({ ok: true, text: done });
+    } catch (err) {
+      setNote({ ok: false, text: errorMessage(err) });
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+  const noteEl = note && <p className={`text-sm ${note.ok ? "text-neutral-300" : "text-rose-400"}`}>{note.text}</p>;
+  return { busy, run, noteEl, setNote };
+}
+
+function AppPage({
+  app,
+  section,
+  go,
+  onChanged,
+  onRotated,
+}: {
+  app: DeveloperApp;
+  section: AppSection;
+  go: (v: View) => void;
+  onChanged: () => Promise<void>;
+  onRotated: (apiKey: string) => Promise<void>;
+}) {
+  const revoked = Boolean(app.revokedAt);
+  const heading = APP_SECTIONS.find((s) => s.id === section)!.label;
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-2 text-sm text-slate-500">
+        <button onClick={() => go({ kind: "apps" })} className="hover:text-white">
+          Apps
+        </button>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <span className="text-slate-300">{app.name}</span>
+      </div>
+      <PageHeading title={heading} actions={<AppStatusBadge app={app} />} />
+      {revoked && section !== "overview" ? (
+        <Card>
+          <EmptyState>This app is revoked. Its key no longer works and it can&apos;t be changed.</EmptyState>
+        </Card>
+      ) : (
+        <>
+          {section === "overview" && <OverviewSection app={app} go={go} onRotated={onRotated} />}
+          {section === "domain" && <DomainSection app={app} onChanged={onChanged} />}
+          {section === "details" && (
+            <Card>
+              <DeclaredFieldsEditor app={app} onSaved={onChanged} />
+            </Card>
+          )}
+          {section === "linking" && <LinkingSection app={app} onChanged={onChanged} />}
+          {section === "settings" && <SettingsSection app={app} onChanged={onChanged} go={go} />}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <>
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="min-w-0 text-slate-300">{children}</dd>
+    </>
+  );
+}
+
+function OverviewSection({ app, go, onRotated }: { app: DeveloperApp; go: (v: View) => void; onRotated: (apiKey: string) => Promise<void> }) {
+  const { busy, run, noteEl } = useAppAction();
+  const revoked = Boolean(app.revokedAt);
+  const steps = [
+    { done: true, label: "Create the app and store its API key on your server", section: "overview" as AppSection },
+    { done: Boolean(app.domainVerifiedAt), label: "Verify your domain, so agents can sign in", section: "domain" as AppSection },
+    { done: app.fields.length > 0, label: "Choose the details your site needs", section: "details" as AppSection },
+  ];
+
+  async function rotate() {
+    if (!window.confirm(`Rotate the key for “${app.name}”? The current key will stop working immediately.`)) return;
+    await run(async () => {
+      const data = await devApi.post<{ apiKey: string }>(`/developer/apps/${app.id}/rotate`);
+      await onRotated(data.apiKey);
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      {!revoked && (
+        <Card>
+          <h3 className="mb-3 text-sm font-semibold text-white">Setup</h3>
+          <ol className="space-y-2">
+            {steps.map((s, i) => (
+              <li key={i}>
+                <button
+                  onClick={() => go({ kind: "app", id: app.id, section: s.section })}
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/5"
+                >
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                      s.done ? "bg-white text-black" : "border border-white/25 text-slate-400"
+                    }`}
+                  >
+                    {s.done ? "✓" : i + 1}
+                  </span>
+                  <span className={s.done ? "text-slate-400" : "text-white"}>{s.label}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </Card>
+      )}
+
+      <Card>
+        <h3 className="mb-3 text-sm font-semibold text-white">Keys</h3>
+        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[9rem_1fr]">
+          <Field label="API key">
+            <span className="font-mono">{app.apiKeyPreview ?? "—"}</span>
+            <span className="block text-xs text-slate-500">Secret. Only shown in full when created or rotated.</span>
+          </Field>
+          <Field label="Public ID">
+            <span className="break-all font-mono">{app.publicId}</span>
+            <span className="block text-xs text-slate-500">Safe to expose. Used for account linking.</span>
+          </Field>
+          <Field label="Domain">
+            <span className="font-mono">{app.domain ?? "Not set"}</span>
+            {app.domainVerifiedAt ? (
+              <span className="ml-2 inline-flex items-center gap-1 text-xs text-neutral-200">
+                <BadgeCheck className="h-3.5 w-3.5" /> Verified
+              </span>
+            ) : (
+              <span className="ml-2 text-xs text-amber-300">Not verified</span>
+            )}
+          </Field>
+          <Field label="Created">{new Date(app.createdAt).toLocaleString()}</Field>
+          {revoked && <Field label="Revoked">{new Date(app.revokedAt!).toLocaleString()}</Field>}
+        </dl>
+        {!revoked && (
+          <div className="mt-4 flex items-center gap-3">
+            <Button variant="secondary" onClick={rotate} disabled={busy}>
+              <RotateCw className="h-4 w-4" /> Rotate key
+            </Button>
+            {noteEl}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function DomainSection({ app, onChanged }: { app: DeveloperApp; onChanged: () => Promise<void> }) {
+  const { busy, run, noteEl } = useAppAction();
+  const [domain, setDomain] = useState(app.domain ?? "");
+  const changed = domain.trim() !== (app.domain ?? "");
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-mono text-base text-white">{app.domain ?? "No domain set"}</span>
+          {app.domainVerifiedAt ? (
+            <Badge tone="success">Verified {new Date(app.domainVerifiedAt).toLocaleDateString()}</Badge>
+          ) : (
+            <Badge tone="warning">Not verified</Badge>
+          )}
         </div>
-        <div className="flex-1">
-          <Label htmlFor="new-app-domain">Site domain</Label>
-          <Input
-            id="new-app-domain"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-            placeholder="shop.example.com"
-            required
-          />
+        {!app.domainVerifiedAt && app.domain && (
+          <div className="mt-4 text-sm text-slate-300">
+            <p>
+              Agents can&apos;t sign in to this site until its domain is verified. Deploy the site with{" "}
+              <code className="text-slate-200">@assentry/sdk</code> 0.8 or later and{" "}
+              <code className="text-slate-200">assentryDiscovery({"{"} partnerName, assentry {"}"})</code> using this app&apos;s API
+              key, then click Verify. The SDK serves the proof at{" "}
+              <code className="break-all text-slate-200">https://{app.domain}/.well-known/assentry-domain-verification</code>.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button onClick={() => run(async () => { await devApi.post(`/developer/apps/${app.id}/verify-domain`); await onChanged(); }, "Domain verified.")} disabled={busy}>
+                <BadgeCheck className="h-4 w-4" /> {busy ? "Checking…" : "Verify domain"}
+              </Button>
+              {noteEl}
+            </div>
+          </div>
+        )}
+        {app.domainVerifiedAt && (
+          <p className="mt-3 text-sm text-slate-400">
+            Agents are shown this domain when they sign in, and credentials issued for your site only work here.
+          </p>
+        )}
+      </Card>
+
+      <Card>
+        <h3 className="mb-1 text-sm font-semibold text-white">Change domain</h3>
+        <p className="mb-3 text-sm text-slate-400">Use the exact host your site runs on, e.g. shop.example.com. A new domain has to be verified again.</p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(async () => {
+              await devApi.patch(`/developer/apps/${app.id}`, { domain: domain.trim() });
+              await onChanged();
+            }, "Saved.");
+          }}
+          className="flex flex-col gap-3 sm:flex-row"
+        >
+          <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="shop.example.com" required />
+          <Button type="submit" variant="secondary" disabled={busy || !changed}>
+            Save domain
+          </Button>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
+function LinkingSection({ app, onChanged }: { app: DeveloperApp; onChanged: () => Promise<void> }) {
+  const { busy, run, noteEl, setNote } = useAppAction();
+  const [uris, setUris] = useState(app.linkRedirectUris.join("\n"));
+
+  return (
+    <Card>
+      <p className="mb-4 text-sm text-slate-400">
+        Optional. Lets people who already have an account on your site confirm it&apos;s theirs, once, so their agent is
+        recognised as that account.{" "}
+        <Link href="/developers/docs#account-linking" className="text-slate-300 underline hover:text-white">
+          How it works
+        </Link>
+      </p>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const list = uris.split("\n").map((u) => u.trim()).filter(Boolean);
+          run(async () => {
+            try {
+              await devApi.patch(`/developer/apps/${app.id}`, { linkRedirectUris: list });
+            } catch (err) {
+              if (err instanceof ApiError && err.status === 400) throw new ApiError("Each redirect URI must be a full http(s) URL.", 400);
+              throw err;
+            }
+            await onChanged();
+          }, "Saved.");
+        }}
+      >
+        <Label htmlFor="link-uris">Redirect URIs (one per line)</Label>
+        <textarea
+          id="link-uris"
+          value={uris}
+          onChange={(e) => {
+            setUris(e.target.value);
+            setNote(null);
+          }}
+          rows={3}
+          placeholder="https://yoursite.com/link/callback"
+          className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-slate-100 placeholder:text-slate-500 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+        />
+        <div className="mt-3 flex items-center gap-3">
+          <Button type="submit" variant="secondary" disabled={busy}>
+            Save redirect URIs
+          </Button>
+          {noteEl}
         </div>
-        <Button type="submit" disabled={busy}>
-          <Plus className="h-4 w-4" /> {busy ? "Creating…" : "Create app"}
-        </Button>
       </form>
-      {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
     </Card>
   );
 }
 
-function AppCard({
-  app,
-  onRotated,
-  onChanged,
-}: {
-  app: DeveloperApp;
-  onRotated: (apiKey: string) => Promise<void>;
-  onChanged: () => Promise<void>;
-}) {
-  const revoked = Boolean(app.revokedAt);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [uris, setUris] = useState(app.linkRedirectUris.join("\n"));
-  const [savedNote, setSavedNote] = useState<string | null>(null);
+function SettingsSection({ app, onChanged, go }: { app: DeveloperApp; onChanged: () => Promise<void>; go: (v: View) => void }) {
+  const rename = useAppAction();
+  const danger = useAppAction();
   const [name, setName] = useState(app.name);
-  const [domain, setDomain] = useState(app.domain ?? "");
-  const [detailsNote, setDetailsNote] = useState<string | null>(null);
-
-  const [verifyNote, setVerifyNote] = useState<string | null>(null);
-  const detailsChanged = name.trim() !== app.name || domain.trim() !== (app.domain ?? "");
-
-  async function saveDetails(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    setDetailsNote(null);
-    try {
-      const body: Record<string, string> = {};
-      if (name.trim() !== app.name) body.name = name.trim();
-      if (domain.trim() !== (app.domain ?? "")) body.domain = domain.trim();
-      const data = await devApi.patch<{ app: DeveloperApp }>(`/developer/apps/${app.id}`, body);
-      setName(data.app.name);
-      setDomain(data.app.domain ?? "");
-      setDetailsNote("Saved");
-      await onChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function verifyDomain() {
-    setBusy(true);
-    setError(null);
-    setVerifyNote(null);
-    try {
-      await devApi.post(`/developer/apps/${app.id}/verify-domain`);
-      setVerifyNote("Domain verified.");
-      await onChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function rotate() {
-    if (!window.confirm(`Rotate the key for “${app.name}”? The current key will stop working immediately.`)) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const data = await devApi.post<{ apiKey: string }>(`/developer/apps/${app.id}/rotate`);
-      await onRotated(data.apiKey);
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function revoke() {
-    if (!window.confirm(`Revoke “${app.name}”? Its key stops working immediately and this can't be undone.`)) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await devApi.post(`/developer/apps/${app.id}/revoke`);
-      await onChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function saveUris(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    setSavedNote(null);
-    try {
-      const list = uris
-        .split("\n")
-        .map((u) => u.trim())
-        .filter(Boolean);
-      await devApi.patch(`/developer/apps/${app.id}`, { linkRedirectUris: list });
-      setSavedNote("Saved");
-      await onChanged();
-    } catch (err) {
-      setError(err instanceof ApiError && err.status === 400 ? "Each redirect URI must be a full http(s) URL." : errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
-    <Card className={revoked ? "opacity-70" : ""}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-white">{app.name}</h3>
-            <Badge tone={revoked ? "danger" : "success"}>{revoked ? "Revoked" : "Active"}</Badge>
-          </div>
-          <dl className="mt-3 grid gap-x-6 gap-y-1.5 text-xs sm:grid-cols-[auto_1fr]">
-            <dt className="text-slate-500">Domain</dt>
-            <dd className="flex items-center gap-1.5 text-slate-300">
-              {app.domain ? (
-                <>
-                  <span className="font-mono">{app.domain}</span>
-                  {app.domainVerifiedAt ? (
-                    <span className="inline-flex items-center gap-1 text-neutral-200">
-                      <BadgeCheck className="h-3.5 w-3.5" /> Verified
-                    </span>
-                  ) : (
-                    <span className="text-amber-300">Not verified</span>
-                  )}
-                </>
-              ) : (
-                <span className="text-amber-300">Not set</span>
-              )}
-            </dd>
-            <dt className="text-slate-500">API key</dt>
-            <dd className="font-mono text-slate-300">{app.apiKeyPreview ?? "—"}</dd>
-            <dt className="text-slate-500">Public ID</dt>
-            <dd className="break-all font-mono text-slate-300">{app.publicId}</dd>
-            <dt className="text-slate-500">Created</dt>
-            <dd className="text-slate-300">{new Date(app.createdAt).toLocaleString()}</dd>
-            {revoked && (
-              <>
-                <dt className="text-slate-500">Revoked</dt>
-                <dd className="text-slate-300">{new Date(app.revokedAt!).toLocaleString()}</dd>
-              </>
-            )}
-          </dl>
-        </div>
-        {!revoked && (
-          <div className="flex shrink-0 gap-2">
-            <Button variant="secondary" onClick={rotate} disabled={busy}>
-              <RotateCw className="h-4 w-4" /> Rotate key
-            </Button>
-            <Button variant="danger" onClick={revoke} disabled={busy}>
-              <ShieldOff className="h-4 w-4" /> Revoke
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {!revoked && app.domain && !app.domainVerifiedAt && (
-        <div className="mt-5 rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-slate-300">
-          <p className="font-medium text-white">Verify {app.domain}</p>
-          <p className="mt-1">
-            Agents can&apos;t sign in to this site until its domain is verified. Deploy the site with{" "}
-            <code className="text-slate-200">@assentry/sdk</code> 0.8 or later and{" "}
-            <code className="text-slate-200">
-              assentryDiscovery({"{"} partnerName, assentry {"}"})
-            </code>{" "}
-            using this app&apos;s API key, then click Verify. The SDK serves the proof at{" "}
-            <code className="break-all text-slate-200">
-              https://{app.domain}/.well-known/assentry-domain-verification
-            </code>
-            .
-          </p>
-          <div className="mt-3 flex items-center gap-3">
-            <Button type="button" variant="secondary" onClick={verifyDomain} disabled={busy}>
-              <BadgeCheck className="h-4 w-4" /> {busy ? "Checking…" : "Verify domain"}
-            </Button>
-            {verifyNote && <span className="text-xs text-neutral-300">{verifyNote}</span>}
-          </div>
-        </div>
-      )}
-
-      {!revoked && (
-        <form onSubmit={saveDetails} className="mt-5 border-t border-white/5 pt-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label htmlFor={`name-${app.id}`}>App name</Label>
-              <Input
-                id={`name-${app.id}`}
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setDetailsNote(null);
-                }}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor={`domain-${app.id}`}>Site domain</Label>
-              <Input
-                id={`domain-${app.id}`}
-                value={domain}
-                onChange={(e) => {
-                  setDomain(e.target.value);
-                  setDetailsNote(null);
-                }}
-                placeholder="shop.example.com"
-                required
-              />
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-3">
-            <Button type="submit" variant="secondary" disabled={busy || !detailsChanged}>
-              Save name & domain
-            </Button>
-            {detailsNote && <span className="text-xs text-neutral-300">{detailsNote}</span>}
-            {domain.trim() !== (app.domain ?? "") && app.domainVerifiedAt && (
-              <span className="text-xs text-amber-300">Changing the domain means verifying it again.</span>
-            )}
-          </div>
+    <div className="space-y-6">
+      <Card>
+        <h3 className="mb-3 text-sm font-semibold text-white">App name</h3>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            rename.run(async () => {
+              await devApi.patch(`/developer/apps/${app.id}`, { name: name.trim() });
+              await onChanged();
+            }, "Saved.");
+          }}
+          className="flex flex-col gap-3 sm:flex-row"
+        >
+          <Input value={name} onChange={(e) => setName(e.target.value)} required />
+          <Button type="submit" variant="secondary" disabled={rename.busy || name.trim() === app.name}>
+            Save name
+          </Button>
         </form>
-      )}
+        <p className="mt-2 text-xs text-slate-500">Shown to agents with your verified domain when they sign in.</p>
+        <div className="mt-2">{rename.noteEl}</div>
+      </Card>
 
-      {!revoked && <DeclaredFieldsEditor app={app} onSaved={onChanged} />}
-
-      {!revoked && (
-        <form onSubmit={saveUris} className="mt-5 border-t border-white/5 pt-4">
-          <Label>Account-linking redirect URIs (one per line, optional)</Label>
-          <textarea
-            value={uris}
-            onChange={(e) => {
-              setUris(e.target.value);
-              setSavedNote(null);
-            }}
-            rows={2}
-            placeholder="https://yoursite.com/link/callback"
-            className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-slate-100 placeholder:text-slate-500 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
-          />
-          <div className="mt-2 flex items-center gap-3">
-            <Button type="submit" variant="secondary" disabled={busy}>
-              Save redirect URIs
-            </Button>
-            {savedNote && <span className="text-xs text-neutral-300">{savedNote}</span>}
-            <Link href="/developers/docs#account-linking" className="text-xs text-slate-400 hover:text-white">
-              What&apos;s this?
-            </Link>
-          </div>
-        </form>
-      )}
-
-      {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
-    </Card>
+      <Card className="border-rose-400/30">
+        <h3 className="mb-1 text-sm font-semibold text-rose-300">Revoke this app</h3>
+        <p className="mb-4 text-sm text-slate-400">
+          Its API key stops working immediately and agents can no longer sign in to your site. This can&apos;t be undone.
+        </p>
+        <Button
+          variant="danger"
+          disabled={danger.busy}
+          onClick={() => {
+            if (!window.confirm(`Revoke “${app.name}”? Its key stops working immediately and this can't be undone.`)) return;
+            danger.run(async () => {
+              await devApi.post(`/developer/apps/${app.id}/revoke`);
+              await onChanged();
+              go({ kind: "app", id: app.id, section: "overview" });
+            });
+          }}
+        >
+          <ShieldOff className="h-4 w-4" /> Revoke app
+        </Button>
+        <div className="mt-2">{danger.noteEl}</div>
+      </Card>
+    </div>
   );
 }
 
@@ -549,9 +851,8 @@ function DeclaredFieldsEditor({ app, onSaved }: { app: DeveloperApp; onSaved: ()
   }
 
   return (
-    <div className="mt-5 border-t border-white/5 pt-4">
-      <Label>Details this site needs</Label>
-      <p className="mb-3 text-xs text-slate-400">
+    <div>
+      <p className="mb-4 text-sm text-slate-400">
         Your site only ever receives details listed here, and only if the person allows them. Each arrives in the format
         shown. Ask for as little as you need. When a person&apos;s agent signs in without a detail you need, Assentry asks
         the person for it.
