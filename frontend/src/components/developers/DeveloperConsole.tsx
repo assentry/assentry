@@ -279,7 +279,11 @@ export function DeveloperConsole() {
         <header className="sticky top-0 z-10 hidden border-b border-white/10 bg-navy-950/80 px-8 py-4 backdrop-blur lg:block">
           <h2 className="text-sm font-medium text-slate-400">{title}</h2>
         </header>
-        <main className={`mx-auto px-4 py-6 sm:px-8 sm:py-8 ${view.kind === "docs" ? "max-w-3xl" : "max-w-4xl"}`}>
+        <main
+          className={`mx-auto px-4 py-6 sm:px-8 sm:py-8 ${
+            view.kind === "docs" ? "max-w-3xl" : view.kind === "app" && view.section === "details" ? "max-w-6xl" : "max-w-4xl"
+          }`}
+        >
           {revealed && <RevealedKeyNotice revealed={revealed} onDismiss={() => setRevealed(null)} />}
 
           {view.kind === "docs" && (
@@ -1143,100 +1147,176 @@ function DeclaredFieldsEditor({ app, onSaved }: { app: DeveloperApp; onSaved: ()
   return (
     <div>
       <p className="mb-4 text-sm text-slate-400">
-        Your site only ever receives details listed here, and only if the person allows them. Each arrives in the format
-        shown. Ask for as little as you need. When a person&apos;s agent signs in without a detail you need, Assentry asks
-        the person for it.
+        Your site only ever receives data listed here, and only if the person allows it. Each arrives in the format shown.
+        Ask for as little as you need. When a person&apos;s agent signs in without data you require, Assentry asks the
+        person for it.
       </p>
 
       {!standard ? (
         <div className="h-24 animate-pulse rounded-lg bg-white/5" />
       ) : (
-        <div className="divide-y divide-white/5 rounded-lg border border-white/10">
-          {standard.map((f) => {
-            const on = f.key in picked;
-            return (
-              <div key={f.key} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm">
-                <label className="flex min-w-[12rem] flex-1 items-center gap-2 text-slate-200">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-white"
-                    checked={on}
-                    onChange={() =>
-                      setPicked((p) => {
-                        const next = { ...p };
-                        if (on) delete next[f.key];
-                        else next[f.key] = false;
-                        return next;
-                      })
-                    }
-                  />
-                  {f.label}
-                  <code className="text-xs text-slate-500">{f.key}</code>
-                </label>
-                <span className="flex-1 text-xs text-slate-500">{f.format}</span>
-                <span className="w-[9.5rem] text-right">
-                  {on && <RequiredToggle value={picked[f.key]} onChange={(v) => setPicked((p) => ({ ...p, [f.key]: v }))} />}
-                </span>
-              </div>
-            );
-          })}
+        <div className="overflow-x-auto rounded-xl border border-white/10">
+          <table className="w-full min-w-[44rem] text-left text-sm">
+            <thead className="bg-white/5 text-xs uppercase tracking-wider text-slate-400">
+              <tr>
+                <th className="w-10 px-3 py-2.5 font-medium">
+                  <span className="sr-only">Include</span>
+                </th>
+                <th className="px-3 py-2.5 font-medium">Data</th>
+                <th className="px-3 py-2.5 font-medium">Key</th>
+                <th className="px-3 py-2.5 font-medium">Data type</th>
+                <th className="px-3 py-2.5 font-medium">Format you receive</th>
+                <th className="px-3 py-2.5 text-right font-medium">Requirement</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {standard.map((f) => {
+                const on = f.key in picked;
+                const id = `field-${app.id}-${f.key}`;
+                return (
+                  <tr key={f.key} className={on ? "bg-white/[0.03]" : ""}>
+                    <td className="px-3 py-2.5">
+                      <input
+                        id={id}
+                        type="checkbox"
+                        className="h-4 w-4 accent-white"
+                        checked={on}
+                        onChange={() =>
+                          setPicked((p) => {
+                            const next = { ...p };
+                            if (on) delete next[f.key];
+                            else next[f.key] = false;
+                            return next;
+                          })
+                        }
+                      />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <label htmlFor={id} className={`cursor-pointer ${on ? "text-white" : "text-slate-300"}`}>
+                        {f.label}
+                      </label>
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-xs text-slate-400">{f.key}</td>
+                    <td className="px-3 py-2.5">
+                      <TypeChip type={f.type} />
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-slate-400">{f.format}</td>
+                    <td className="px-3 py-2.5 text-right">
+                      {on ? (
+                        <RequiredToggle value={picked[f.key]} onChange={(v) => setPicked((p) => ({ ...p, [f.key]: v }))} />
+                      ) : (
+                        <span className="text-xs text-slate-600">Not requested</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
-      <p className="mb-2 mt-4 text-xs font-medium text-slate-400">Your own details</p>
-      {custom.length === 0 && <p className="mb-2 text-xs text-slate-500">None. Add one for anything not in the list above.</p>}
-      <div className="space-y-2">
-        {custom.map((c, i) => {
-          const set = (patch: Partial<CustomDraft>) => setCustom((cs) => cs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-          return (
-            <div key={i} className="grid grid-cols-1 items-center gap-2 rounded-lg border border-white/10 p-2 sm:grid-cols-[1fr_1fr_10rem_auto_auto]">
-              <Input placeholder="Label, e.g. Membership number" value={c.label} onChange={(e) => set({ label: e.target.value })} />
-              <Input placeholder="key, e.g. membership_number" value={c.key} onChange={(e) => set({ key: e.target.value })} />
-              <Select value={c.type} onChange={(e) => set({ type: e.target.value as FieldType })}>
-                {FIELD_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {TYPE_LABELS[t]}
-                  </option>
-                ))}
-              </Select>
-              <RequiredToggle value={c.required} onChange={(v) => set({ required: v })} />
-              <button
-                type="button"
-                className="text-xs text-slate-500 hover:text-rose-300"
-                onClick={() => setCustom((cs) => cs.filter((_, j) => j !== i))}
-              >
-                Remove
-              </button>
-              {c.type === "choice" && (
-                <Input
-                  className="sm:col-span-5"
-                  placeholder="Options, comma-separated"
-                  value={c.options}
-                  onChange={(e) => set({ options: e.target.value })}
-                />
-              )}
-            </div>
-          );
-        })}
+      <h3 className="mb-2 mt-8 text-sm font-semibold text-white">Your own data</h3>
+      <p className="mb-3 text-sm text-slate-400">For anything not in the list above. Only ever shared with your site.</p>
+      <div className="overflow-x-auto rounded-xl border border-white/10">
+        <table className="w-full min-w-[44rem] text-left text-sm">
+          <thead className="bg-white/5 text-xs uppercase tracking-wider text-slate-400">
+            <tr>
+              <th className="px-3 py-2.5 font-medium">Data</th>
+              <th className="px-3 py-2.5 font-medium">Key</th>
+              <th className="px-3 py-2.5 font-medium">Data type</th>
+              <th className="px-3 py-2.5 text-right font-medium">Requirement</th>
+              <th className="w-16 px-3 py-2.5">
+                <span className="sr-only">Remove</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {custom.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-3 py-4 text-center text-xs text-slate-500">
+                  None yet.
+                </td>
+              </tr>
+            )}
+            {custom.map((c, i) => {
+              const set = (patch: Partial<CustomDraft>) => setCustom((cs) => cs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+              return (
+                <tr key={i} className="align-top">
+                  <td className="px-3 py-2">
+                    <Input aria-label="Label" placeholder="e.g. Membership number" value={c.label} onChange={(e) => set({ label: e.target.value })} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input
+                      aria-label="Key"
+                      className="font-mono text-xs"
+                      placeholder="membership_number"
+                      value={c.key}
+                      onChange={(e) => set({ key: e.target.value })}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Select aria-label="Data type" value={c.type} onChange={(e) => set({ type: e.target.value as FieldType })}>
+                      {FIELD_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {TYPE_LABELS[t]}
+                        </option>
+                      ))}
+                    </Select>
+                    {c.type === "choice" && (
+                      <Input
+                        aria-label="Options"
+                        className="mt-2"
+                        placeholder="Options, comma-separated"
+                        value={c.options}
+                        onChange={(e) => set({ options: e.target.value })}
+                      />
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <RequiredToggle value={c.required} onChange={(v) => set({ required: v })} />
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <button
+                      type="button"
+                      className="mt-2 text-xs text-slate-500 hover:text-rose-300"
+                      onClick={() => setCustom((cs) => cs.filter((_, j) => j !== i))}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
       <button
         type="button"
-        className="mt-2 inline-flex items-center gap-1 text-sm text-slate-300 hover:text-white"
+        className="mt-3 inline-flex items-center gap-1 text-sm text-slate-300 hover:text-white"
         onClick={() => setCustom((cs) => [...cs, { key: "", label: "", type: "text", options: "", required: false }])}
       >
-        <Plus className="h-4 w-4" /> Add your own detail
+        <Plus className="h-4 w-4" /> Add your own data
       </button>
 
       <div className="mt-3 flex items-center gap-3">
         <Button type="button" variant="secondary" onClick={save} disabled={busy || !changed}>
-          Save details
+          Save required data
         </Button>
         {note && <span className={`text-xs ${note.ok ? "text-neutral-300" : "text-rose-400"}`}>{note.text}</span>}
         {Object.keys(picked).length + custom.length === 0 && (
-          <span className="text-xs text-amber-300">Nothing listed: your site gets no details.</span>
+          <span className="text-xs text-amber-300">Nothing listed: your site gets no data.</span>
         )}
       </div>
     </div>
+  );
+}
+
+function TypeChip({ type }: { type: FieldType }) {
+  return (
+    <span className="inline-flex whitespace-nowrap rounded-md border border-white/15 bg-white/5 px-2 py-0.5 text-xs font-medium text-slate-200">
+      {TYPE_LABELS[type]}
+    </span>
   );
 }
 
