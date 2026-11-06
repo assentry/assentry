@@ -102,7 +102,7 @@ export function Sidebar({
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden h-screen w-64 shrink-0 flex-col justify-between border-r border-white/10 bg-navy-900 px-4 py-6 lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between border-r border-white/10 bg-navy-900 px-4 py-6 lg:flex">
         {content}
       </aside>
     </>
