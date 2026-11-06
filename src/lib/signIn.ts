@@ -3,21 +3,31 @@ import { issueCredential } from "./credential";
 import { normaliseDomain } from "./domain";
 import { prisma } from "./prisma";
 
-// No look-alike characters (0/O, 1/I/L, 5/S, 8/B, 2/Z), so an agent reading
-// the code off a page can't misread it.
-const ALPHABET = "ACDEFGHJKMNPQRTUVWXY34679";
+// Codes are copied by agents, never typed by people, so they're long and
+// random rather than memorable: "asq_" + 52 characters from a 31-symbol
+// alphabet (capitals and digits without look-alikes: no 0/O, 1/I/L), about
+// 258 bits, far beyond any guessing.
+const PREFIX = "asq_";
+const ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+const CODE_LENGTH = 52;
 const SIGN_IN_TTL_MS = 5 * 60 * 1000;
 
 function randomCode(): string {
-  const bytes = crypto.randomBytes(6);
-  const chars = Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]);
-  return `${chars.slice(0, 3).join("")}-${chars.slice(3).join("")}`;
+  let out = "";
+  while (out.length < CODE_LENGTH) {
+    for (const byte of crypto.randomBytes(CODE_LENGTH)) {
+      // Rejection sampling: 248 is the largest multiple of 31 below 256, so
+      // every symbol is equally likely.
+      if (byte < 248 && out.length < CODE_LENGTH) out += ALPHABET[byte % ALPHABET.length];
+    }
+  }
+  return PREFIX + out;
 }
 
-/** Normalises what an agent passes in: case, spaces and a missing dash. */
+/** Normalises what an agent passes in: case, spaces, dashes, a missing prefix. */
 export function normaliseCode(input: string): string {
-  const raw = input.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  return raw.length === 6 ? `${raw.slice(0, 3)}-${raw.slice(3)}` : input.trim().toUpperCase();
+  const body = input.toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^ASQ/, "");
+  return PREFIX + body;
 }
 
 export class SiteNotVerifiedError extends Error {}

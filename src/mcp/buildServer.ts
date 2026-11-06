@@ -13,7 +13,7 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
     {
       instructions:
         "Assentry lets you act on participating websites for the person who connected you, with their permission. " +
-        "When a website you're browsing shows an Assentry sign-in code (for example 'Assentry sign-in code: KQ7-4MZ'), " +
+        "When a website you're browsing shows an Assentry sign-in code (it starts with asq_), " +
         "sign in by calling approve_sign_in with that code and the domain from the address bar of the page you're on. " +
         "Assentry only approves it if the code belongs to that verified domain. The site then signs you in by itself. " +
         "Never type a credential, password or token into a website; with Assentry you never need to.",
@@ -76,13 +76,13 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
     "approve_sign_in",
     {
       description:
-        "Sign in to a participating website you're browsing. The site shows a short Assentry sign-in code " +
-        "(like KQ7-4MZ); pass it here and the site signs you in for the person who connected you, without you " +
-        "typing anything into the site. Pass the domain from the address bar too: Assentry checks the code was " +
+        "Sign in to a participating website you're browsing. The site shows an Assentry sign-in code " +
+        "(a long code starting with asq_). Copy it exactly and pass it here; the site then signs you in for the " +
+        "person who connected you, without you typing anything into the site. Pass the domain from the address bar too: Assentry checks the code was " +
         "issued to that verified domain and refuses otherwise. If the person has more than one active " +
         "authorisation, pass grantId (from list_my_authorizations).",
       inputSchema: {
-        code: z.string().describe("The sign-in code shown on the website, e.g. KQ7-4MZ"),
+        code: z.string().describe("The full sign-in code shown on the website, starting with asq_"),
         siteDomain: z
           .string()
           .describe("The domain in the address bar of the page showing the code, e.g. shop.example.com"),
