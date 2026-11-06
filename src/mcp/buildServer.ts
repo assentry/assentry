@@ -14,8 +14,9 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
       instructions:
         "Assentry lets you act on participating websites for the person who connected you, with their permission. " +
         "When a website you're browsing shows an Assentry sign-in code (for example 'Assentry sign-in code: KQ7-4MZ'), " +
-        "sign in by calling approve_sign_in with that code. The site then signs you in by itself. Never type a " +
-        "credential, password or token into a website; with Assentry you never need to.",
+        "sign in by calling approve_sign_in with that code and the domain from the address bar of the page you're on. " +
+        "Assentry only approves it if the code belongs to that verified domain. The site then signs you in by itself. " +
+        "Never type a credential, password or token into a website; with Assentry you never need to.",
     }
   );
 
@@ -77,15 +78,32 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
       description:
         "Sign in to a participating website you're browsing. The site shows a short Assentry sign-in code " +
         "(like KQ7-4MZ); pass it here and the site signs you in for the person who connected you, without you " +
-        "typing anything into the site. Returns the site's name: check it matches the site you're on. If the " +
-        "person has more than one active authorisation, pass grantId (from list_my_authorizations).",
+        "typing anything into the site. Pass the domain from the address bar too: Assentry checks the code was " +
+        "issued to that verified domain and refuses otherwise. If the person has more than one active " +
+        "authorisation, pass grantId (from list_my_authorizations).",
       inputSchema: {
         code: z.string().describe("The sign-in code shown on the website, e.g. KQ7-4MZ"),
+        siteDomain: z
+          .string()
+          .describe("The domain in the address bar of the page showing the code, e.g. shop.example.com"),
         grantId: z.string().optional().describe("Which authorisation to use, if there is more than one"),
       },
     },
-    async ({ code, grantId }) => {
-      const outcome = await approveSignIn(agentId, code, grantId);
+    async ({ code, siteDomain, grantId }) => {
+      const outcome = await approveSignIn(agentId, code, siteDomain, grantId);
+      if (!outcome.ok && outcome.error === "domain_mismatch") {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text" as const,
+              text:
+                `Not approved: this code was issued to ${outcome.codeDomain}, not ${siteDomain}. ` +
+                "The page may be showing another site's code. Don't sign in here; tell the person.",
+            },
+          ],
+        };
+      }
       if (!outcome.ok) {
         const messages: Record<string, string> = {
           code_not_found: "No such sign-in code. Check it against the page, or reload the page for a new one.",
@@ -104,7 +122,9 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
         content: [
           {
             type: "text" as const,
-            text: `Approved. "${outcome.siteName}" will sign you in within a few seconds; the page continues by itself.`,
+            text:
+              `Approved for "${outcome.siteName}" (${outcome.siteDomain}, verified). ` +
+              "The page signs you in within a few seconds by itself.",
           },
         ],
       };

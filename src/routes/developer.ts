@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { DeveloperRequest, requireDeveloper, signDeveloperSession } from "../lib/developerAuth";
 import { prisma } from "../lib/prisma";
+import { newVerificationToken, normaliseDomain, verifyPartnerDomain } from "../lib/domain";
 import { generateSecret, hashSecret } from "../lib/secrets";
 
 // The developer console's API: developer accounts (separate from end-user
@@ -62,6 +63,9 @@ const appSelect = {
   publicId: true,
   apiKeyPreview: true,
   linkRedirectUris: true,
+  domain: true,
+  domainVerificationToken: true,
+  domainVerifiedAt: true,
   createdAt: true,
   revokedAt: true,
 } as const;
@@ -86,13 +90,30 @@ apps.get("/", async (req: DeveloperRequest, res) => {
   res.json({ apps: list });
 });
 
+const nameSchema = z.string().trim().min(1).max(100);
+const domainSchema = z.string().transform((value, ctx) => {
+  const domain = normaliseDomain(value);
+  if (!domain) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "enter the site's domain, e.g. shop.example.com" });
+    return z.NEVER;
+  }
+  return domain;
+});
+
 apps.post("/", async (req: DeveloperRequest, res) => {
-  const parsed = z.object({ name: z.string().trim().min(1).max(100) }).safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const parsed = z.object({ name: nameSchema, domain: domainSchema }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed.error) });
 
   const { apiKey, apiKeyHash, apiKeyPreview } = issueKey();
   const app = await prisma.partner.create({
-    data: { name: parsed.data.name, developerId: req.developerId!, apiKeyHash, apiKeyPreview },
+    data: {
+      name: parsed.data.name,
+      domain: parsed.data.domain,
+      domainVerificationToken: newVerificationToken(),
+      developerId: req.developerId!,
+      apiKeyHash,
+      apiKeyPreview,
+    },
     select: appSelect,
   });
   res.status(201).json({ app, apiKey });
@@ -127,19 +148,55 @@ apps.post("/:id/revoke", async (req: DeveloperRequest, res) => {
 
 // Account-linking redirect URIs (see /link/authorize) — validated against
 // exactly this list, so they have to be registered before linking works.
+// Name, domain and account-linking redirect URIs (see /link/authorize).
+// Changing the domain drops its verification, since it's a different site.
 apps.patch("/:id", async (req: DeveloperRequest, res) => {
   const parsed = z
-    .object({ linkRedirectUris: z.array(z.string().url().refine((u) => /^https?:\/\//.test(u))).max(10) })
+    .object({
+      name: nameSchema.optional(),
+      domain: domainSchema.optional(),
+      linkRedirectUris: z.array(z.string().url().refine((u) => /^https?:\/\//.test(u))).max(10).optional(),
+    })
     .safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed.error) });
 
   const existing = await findOwnApp(req.developerId!, req.params.id);
   if (!existing) return res.status(404).json({ error: "app not found" });
 
+  const { name, domain, linkRedirectUris } = parsed.data;
+  const domainChanged = domain !== undefined && domain !== existing.domain;
   const app = await prisma.partner.update({
     where: { id: existing.id },
-    data: { linkRedirectUris: parsed.data.linkRedirectUris },
+    data: {
+      ...(name !== undefined ? { name } : {}),
+      ...(linkRedirectUris !== undefined ? { linkRedirectUris } : {}),
+      ...(domainChanged ? { domain, domainVerificationToken: newVerificationToken(), domainVerifiedAt: null } : {}),
+    },
     select: appSelect,
   });
   res.json({ app });
 });
+
+apps.post("/:id/verify-domain", async (req: DeveloperRequest, res) => {
+  const existing = await findOwnApp(req.developerId!, req.params.id);
+  if (!existing) return res.status(404).json({ error: "app not found" });
+  if (existing.revokedAt) return res.status(409).json({ error: "app is revoked" });
+
+  const outcome = await verifyPartnerDomain(existing.id);
+  if (!outcome.ok) {
+    const messages = {
+      no_domain: "Set the app's domain first.",
+      taken: "That domain is already verified by another account.",
+      unreachable: `Couldn't fetch the verification file from ${existing.domain}${outcome.detail ? ` (${outcome.detail})` : ""}. Is the site deployed with the latest SDK?`,
+      token_mismatch: `${existing.domain} is serving a different verification token. Check the site uses this app's API key.`,
+    };
+    return res.status(422).json({ error: messages[outcome.error] });
+  }
+  const app = await prisma.partner.findUnique({ where: { id: existing.id }, select: appSelect });
+  res.json({ app });
+});
+
+function firstIssue(error: z.ZodError): string {
+  const issue = error.issues[0];
+  return issue ? `${issue.path.join(".") || "input"}: ${issue.message}` : "invalid input";
+}

@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { issueCredential } from "./credential";
+import { normaliseDomain } from "./domain";
 import { prisma } from "./prisma";
 
 // No look-alike characters (0/O, 1/I/L, 5/S, 8/B, 2/Z), so an agent reading
@@ -19,7 +20,13 @@ export function normaliseCode(input: string): string {
   return raw.length === 6 ? `${raw.slice(0, 3)}-${raw.slice(3)}` : input.trim().toUpperCase();
 }
 
+export class SiteNotVerifiedError extends Error {}
+
 export async function startSignIn(partnerId: string) {
+  // Agents are told which site a code belongs to by its verified domain,
+  // so a site without one can't offer browser-agent sign-in at all.
+  const partner = await prisma.partner.findUnique({ where: { id: partnerId } });
+  if (!partner?.domain || !partner.domainVerifiedAt) throw new SiteNotVerifiedError();
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
       return await prisma.signInRequest.create({
@@ -35,7 +42,8 @@ export async function startSignIn(partnerId: string) {
 }
 
 export type ApproveOutcome =
-  | { ok: true; siteName: string }
+  | { ok: true; siteName: string; siteDomain: string }
+  | { ok: false; error: "domain_mismatch"; codeDomain: string }
   | {
       ok: false;
       error:
@@ -53,12 +61,24 @@ export type ApproveOutcome =
  * connection. This is what ties the request to a person: whichever agent
  * approves it, with which of that agent's grants.
  */
-export async function approveSignIn(agentId: string, rawCode: string, grantId?: string): Promise<ApproveOutcome> {
+export async function approveSignIn(
+  agentId: string,
+  rawCode: string,
+  siteDomain: string,
+  grantId?: string
+): Promise<ApproveOutcome> {
   const request = await prisma.signInRequest.findUnique({
     where: { code: normaliseCode(rawCode) },
-    include: { partner: { select: { name: true, revokedAt: true } } },
+    include: { partner: { select: { name: true, revokedAt: true, domain: true, domainVerifiedAt: true } } },
   });
-  if (!request || request.partner.revokedAt) return { ok: false, error: "code_not_found" };
+  if (!request || request.partner.revokedAt || !request.partner.domain || !request.partner.domainVerifiedAt) {
+    return { ok: false, error: "code_not_found" };
+  }
+  // The agent says which site it's on; the code must belong to that site's
+  // verified domain. Stops a code shown on one site being approved for another.
+  if (normaliseDomain(siteDomain) !== request.partner.domain) {
+    return { ok: false, error: "domain_mismatch", codeDomain: request.partner.domain };
+  }
   if (request.approvedAt) return { ok: false, error: "code_already_used" };
   if (request.expiresAt.getTime() < Date.now()) return { ok: false, error: "code_expired" };
 
@@ -97,7 +117,7 @@ export async function approveSignIn(agentId: string, rawCode: string, grantId?: 
     },
   });
 
-  return { ok: true, siteName: request.partner.name };
+  return { ok: true, siteName: request.partner.name, siteDomain: request.partner.domain };
 }
 
 export type CollectOutcome =

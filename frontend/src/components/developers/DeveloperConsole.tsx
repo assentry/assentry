@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, BookOpen, KeyRound, LogOut, Plus, RotateCw, ShieldOff } from "lucide-react";
+import { AlertTriangle, BadgeCheck, BookOpen, KeyRound, LogOut, Plus, RotateCw, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -174,17 +174,22 @@ function RevealedKeyNotice({ revealed, onDismiss }: { revealed: RevealedKey; onD
 
 function CreateAppCard({ onCreated }: { onCreated: (app: DeveloperApp, apiKey: string) => Promise<void> }) {
   const [name, setName] = useState("");
+  const [domain, setDomain] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !domain.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      const data = await devApi.post<{ app: DeveloperApp; apiKey: string }>("/developer/apps", { name: name.trim() });
+      const data = await devApi.post<{ app: DeveloperApp; apiKey: string }>("/developer/apps", {
+        name: name.trim(),
+        domain: domain.trim(),
+      });
       setName("");
+      setDomain("");
       await onCreated(data.app, data.apiKey);
     } catch (err) {
       setError(errorMessage(err));
@@ -197,12 +202,23 @@ function CreateAppCard({ onCreated }: { onCreated: (app: DeveloperApp, apiKey: s
     <Card className="mt-6">
       <h2 className="text-sm font-semibold text-white">Create an app</h2>
       <p className="mt-1 text-sm text-slate-400">
-        One app per website or service that accepts Assentry agents. Each app gets its own API key.
+        One app per website or service that accepts Assentry agents. Each app gets its own API key. Agents are shown the
+        site&apos;s domain, once you&apos;ve verified it, so they can check it against the page they&apos;re on.
       </p>
       <form onSubmit={create} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
-          <Label>App name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme (production)" required />
+          <Label htmlFor="new-app-name">App name</Label>
+          <Input id="new-app-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme" required />
+        </div>
+        <div className="flex-1">
+          <Label htmlFor="new-app-domain">Site domain</Label>
+          <Input
+            id="new-app-domain"
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            placeholder="shop.example.com"
+            required
+          />
         </div>
         <Button type="submit" disabled={busy}>
           <Plus className="h-4 w-4" /> {busy ? "Creating…" : "Create app"}
@@ -227,6 +243,47 @@ function AppCard({
   const [error, setError] = useState<string | null>(null);
   const [uris, setUris] = useState(app.linkRedirectUris.join("\n"));
   const [savedNote, setSavedNote] = useState<string | null>(null);
+  const [name, setName] = useState(app.name);
+  const [domain, setDomain] = useState(app.domain ?? "");
+  const [detailsNote, setDetailsNote] = useState<string | null>(null);
+  const [verifyNote, setVerifyNote] = useState<string | null>(null);
+  const detailsChanged = name.trim() !== app.name || domain.trim() !== (app.domain ?? "");
+
+  async function saveDetails(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setDetailsNote(null);
+    try {
+      const body: Record<string, string> = {};
+      if (name.trim() !== app.name) body.name = name.trim();
+      if (domain.trim() !== (app.domain ?? "")) body.domain = domain.trim();
+      const data = await devApi.patch<{ app: DeveloperApp }>(`/developer/apps/${app.id}`, body);
+      setName(data.app.name);
+      setDomain(data.app.domain ?? "");
+      setDetailsNote("Saved");
+      await onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyDomain() {
+    setBusy(true);
+    setError(null);
+    setVerifyNote(null);
+    try {
+      await devApi.post(`/developer/apps/${app.id}/verify-domain`);
+      setVerifyNote("Domain verified.");
+      await onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function rotate() {
     if (!window.confirm(`Rotate the key for “${app.name}”? The current key will stop working immediately.`)) return;
@@ -285,6 +342,23 @@ function AppCard({
             <Badge tone={revoked ? "danger" : "success"}>{revoked ? "Revoked" : "Active"}</Badge>
           </div>
           <dl className="mt-3 grid gap-x-6 gap-y-1.5 text-xs sm:grid-cols-[auto_1fr]">
+            <dt className="text-slate-500">Domain</dt>
+            <dd className="flex items-center gap-1.5 text-slate-300">
+              {app.domain ? (
+                <>
+                  <span className="font-mono">{app.domain}</span>
+                  {app.domainVerifiedAt ? (
+                    <span className="inline-flex items-center gap-1 text-neutral-200">
+                      <BadgeCheck className="h-3.5 w-3.5" /> Verified
+                    </span>
+                  ) : (
+                    <span className="text-amber-300">Not verified</span>
+                  )}
+                </>
+              ) : (
+                <span className="text-amber-300">Not set</span>
+              )}
+            </dd>
             <dt className="text-slate-500">API key</dt>
             <dd className="font-mono text-slate-300">{app.apiKeyPreview ?? "—"}</dd>
             <dt className="text-slate-500">Public ID</dt>
@@ -310,6 +384,71 @@ function AppCard({
           </div>
         )}
       </div>
+
+      {!revoked && app.domain && !app.domainVerifiedAt && (
+        <div className="mt-5 rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-slate-300">
+          <p className="font-medium text-white">Verify {app.domain}</p>
+          <p className="mt-1">
+            Agents can&apos;t sign in to this site until its domain is verified. Deploy the site with{" "}
+            <code className="text-slate-200">@assentry/sdk</code> 0.8 or later and{" "}
+            <code className="text-slate-200">
+              assentryDiscovery({"{"} partnerName, assentry {"}"})
+            </code>{" "}
+            using this app&apos;s API key, then click Verify. The SDK serves the proof at{" "}
+            <code className="break-all text-slate-200">
+              https://{app.domain}/.well-known/assentry-domain-verification
+            </code>
+            .
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <Button type="button" variant="secondary" onClick={verifyDomain} disabled={busy}>
+              <BadgeCheck className="h-4 w-4" /> {busy ? "Checking…" : "Verify domain"}
+            </Button>
+            {verifyNote && <span className="text-xs text-neutral-300">{verifyNote}</span>}
+          </div>
+        </div>
+      )}
+
+      {!revoked && (
+        <form onSubmit={saveDetails} className="mt-5 border-t border-white/5 pt-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor={`name-${app.id}`}>App name</Label>
+              <Input
+                id={`name-${app.id}`}
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setDetailsNote(null);
+                }}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor={`domain-${app.id}`}>Site domain</Label>
+              <Input
+                id={`domain-${app.id}`}
+                value={domain}
+                onChange={(e) => {
+                  setDomain(e.target.value);
+                  setDetailsNote(null);
+                }}
+                placeholder="shop.example.com"
+                required
+              />
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-3">
+            <Button type="submit" variant="secondary" disabled={busy || !detailsChanged}>
+              Save name & domain
+            </Button>
+            {detailsNote && <span className="text-xs text-neutral-300">{detailsNote}</span>}
+            {domain.trim() !== (app.domain ?? "") && app.domainVerifiedAt && (
+              <span className="text-xs text-amber-300">Changing the domain means verifying it again.</span>
+            )}
+          </div>
+        </form>
+      )}
 
       {!revoked && (
         <form onSubmit={saveUris} className="mt-5 border-t border-white/5 pt-4">

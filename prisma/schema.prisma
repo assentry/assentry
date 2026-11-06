@@ -135,6 +135,15 @@ model Partner {
   // A revoked partner's key is rejected everywhere (requirePartner).
   revokedAt DateTime?
 
+  // The site's hostname, e.g. "shop.example.com". Shown to agents so they
+  // can check it against the page they're on, so it only counts once
+  // verified: Assentry fetched /.well-known/assentry-domain-verification
+  // from that host and found this partner's token (served by the SDK).
+  // Browser-agent sign-in is refused until then.
+  domain                  String?
+  domainVerificationToken String?
+  domainVerifiedAt        DateTime?
+
   // Safe to put in a browser-facing URL (unlike id/apiKeyHash semantics —
   // id already is, but this makes the "safe to expose" contract explicit
   // for the account-linking flow below).

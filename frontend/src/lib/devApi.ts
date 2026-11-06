@@ -59,6 +59,9 @@ export interface DeveloperApp {
   publicId: string;
   apiKeyPreview: string | null;
   linkRedirectUris: string[];
+  domain: string | null;
+  domainVerificationToken: string | null;
+  domainVerifiedAt: string | null;
   createdAt: string;
   revokedAt: string | null;
 }

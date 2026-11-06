@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { PartnerRequest, requirePartner } from "../lib/partnerAuth";
-import { collectSignIn, startSignIn } from "../lib/signIn";
+import { collectSignIn, SiteNotVerifiedError, startSignIn } from "../lib/signIn";
 
 // Partner side of browser-agent sign-in (see lib/signIn.ts). Both calls use
 // the site's API key, so only the site's own server can start or collect.
@@ -9,7 +9,17 @@ export const signInRouter = Router();
 signInRouter.use(requirePartner);
 
 signInRouter.post("/", async (req: PartnerRequest, res) => {
-  const request = await startSignIn(req.partner!.id);
+  let request;
+  try {
+    request = await startSignIn(req.partner!.id);
+  } catch (err) {
+    if (err instanceof SiteNotVerifiedError) {
+      return res.status(403).json({
+        error: "this app's domain isn't verified yet; verify it in the Assentry developer console to enable agent sign-in",
+      });
+    }
+    throw err;
+  }
   res.status(201).json({ requestId: request.id, code: request.code, expiresAt: request.expiresAt });
 });
 
