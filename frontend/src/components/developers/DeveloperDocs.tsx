@@ -442,15 +442,25 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
           {/* ---------------- Account linking ---------------- */}
           <div className="mt-16">
             <H2 id="account-linking">Account linking</H2>
+            <H3>Recognising returning people</H3>
+            <P>
+              Key your accounts on the <C>userId</C> that <C>verify</C> returns. It&apos;s the same for a person every
+              time, whichever agent they use and however many times they renew or change their permission. Don&apos;t
+              key on email: people can change it, choose not to share it, and Assentry doesn&apos;t verify it yet.
+              Store the email or name alongside the account if the person shares them, but find the account by{" "}
+              <C>userId</C>.
+            </P>
+            <H3>People who already had an account</H3>
             <P>
               If a person already had an account on your site before they used Assentry, a credential alone
               doesn&apos;t say <i>which</i> of your accounts is theirs. You have two options:
             </P>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-slate-300">
               <li>
-                <b>Match it yourself</b> — use <C>getProfile</C> (e.g. their email) and your own logic to find or
-                create the account. Simple, no extra step for the person. Note that Assentry doesn&apos;t verify emails
-                yet, so treat this as an unverified claim.
+                <b>Match it yourself</b>: on their first visit through Assentry, use <C>getProfile</C> (e.g. their
+                email) and your own logic to find the existing account, then save the <C>userId</C> on it so later
+                visits are found by ID. Simple, no extra step for the person. Note that Assentry doesn&apos;t verify
+                emails yet, so treat the match as an unverified claim.
               </li>
               <li>
                 <b>Explicit linking</b> — a one-time confirmation by the person, while logged in to your site.
