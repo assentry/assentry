@@ -62,16 +62,26 @@ const DOCS_FOR_SECTION: Record<AppSection, string> = {
   settings: "errors",
 };
 
-type View = { kind: "apps" } | { kind: "new" } | { kind: "app"; id: string; section: AppSection };
+type View =
+  | { kind: "apps" }
+  | { kind: "new" }
+  | { kind: "app"; id: string; section: AppSection }
+  | { kind: "docs"; section: string };
 
 function useConsoleView(): [View, (v: View) => void] {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const appId = params.get("app");
-  const section = (APP_SECTIONS.find((s) => s.id === params.get("section"))?.id ?? "overview") as AppSection;
-  const view: View = appId ? { kind: "app", id: appId, section } : params.get("view") === "new" ? { kind: "new" } : { kind: "apps" };
   const docs = params.get("docs");
+  const section = (APP_SECTIONS.find((s) => s.id === params.get("section"))?.id ?? "overview") as AppSection;
+  const view: View = docs
+    ? { kind: "docs", section: DOC_SECTIONS.some((d) => d.id === docs) ? docs : DOC_SECTIONS[0].id }
+    : appId
+      ? { kind: "app", id: appId, section }
+      : params.get("view") === "new"
+        ? { kind: "new" }
+        : { kind: "apps" };
   const go = useCallback(
     (v: View) => {
       const q = new URLSearchParams();
@@ -79,44 +89,32 @@ function useConsoleView(): [View, (v: View) => void] {
         q.set("app", v.id);
         if (v.section !== "overview") q.set("section", v.section);
       } else if (v.kind === "new") q.set("view", "new");
-      if (docs) q.set("docs", docs); // the docs panel stays open while you move around
+      else if (v.kind === "docs") q.set("docs", v.section);
       const qs = q.toString();
-      router.push(`${pathname}${qs ? `?${qs}` : ""}`);
+      // Moving between doc sections shouldn't pile up history entries.
+      const url = `${pathname}${qs ? `?${qs}` : ""}`;
+      if (v.kind === "docs" && docs) router.replace(url, { scroll: false });
+      else router.push(url);
     },
     [router, pathname, docs]
   );
   return [view, go];
 }
 
-/** The docs panel: open (at a section) or closed, kept in the URL as ?docs=<section>. */
-function useDocsPanel(): [string | null, (section: string | null) => void] {
-  const params = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const docs = params.get("docs");
-  const set = useCallback(
-    (section: string | null) => {
-      const q = new URLSearchParams(params.toString());
-      if (section) q.set("docs", section);
-      else q.delete("docs");
-      const qs = q.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
-    },
-    [params, router, pathname]
-  );
-  return [docs, set];
-}
-
 export function DeveloperConsole() {
   const router = useRouter();
   const [view, go] = useConsoleView();
-  const [docs, setDocs] = useDocsPanel();
   const [developer, setDeveloper] = useState<Developer | null>(null);
   const [apps, setApps] = useState<DeveloperApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<RevealedKey | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // The docs section being read: follows clicks (via the URL) and scrolling (locally).
+  const [docActive, setDocActive] = useState(view.kind === "docs" ? view.section : DOC_SECTIONS[0].id);
+  useEffect(() => {
+    if (view.kind === "docs") setDocActive(view.section);
+  }, [view.kind, view.kind === "docs" ? view.section : ""]);
 
   const loadApps = useCallback(async () => {
     const data = await devApi.get<{ apps: DeveloperApp[] }>("/developer/apps");
@@ -147,6 +145,9 @@ export function DeveloperConsole() {
   }, [router, loadApps]);
 
   useEffect(() => setMobileOpen(false), [view.kind, view.kind === "app" ? view.id + view.section : ""]);
+  useEffect(() => {
+    if (view.kind !== "docs") window.scrollTo({ top: 0 });
+  }, [view.kind, view.kind === "app" ? view.id + view.section : ""]);
 
   function logOut() {
     clearDevToken();
@@ -159,7 +160,9 @@ export function DeveloperConsole() {
 
   const app = view.kind === "app" ? apps.find((a) => a.id === view.id) : undefined;
   const title =
-    view.kind === "new" ? "Create an app" : view.kind === "app" ? (app ? `${app.name} · ${APP_SECTIONS.find((s) => s.id === view.section)!.label}` : "App not found") : "Apps";
+    view.kind === "docs"
+      ? `Docs · ${DOC_SECTIONS.find((d) => d.id === view.section)?.label ?? ""}`
+      : view.kind === "new" ? "Create an app" : view.kind === "app" ? (app ? `${app.name} · ${APP_SECTIONS.find((s) => s.id === view.section)!.label}` : "App not found") : "Apps";
 
   const sidebar = (
     <ConsoleSidebar
@@ -167,8 +170,6 @@ export function DeveloperConsole() {
       view={view}
       go={go}
       email={developer.email}
-      docsOpen={Boolean(docs)}
-      onToggleDocs={() => setDocs(docs ? null : "overview")}
       onLogOut={logOut}
       onClose={() => setMobileOpen(false)}
     />
@@ -193,13 +194,18 @@ export function DeveloperConsole() {
         {sidebar}
       </aside>
 
+      {view.kind === "docs" && <DocsNav section={docActive} onSection={(section) => go({ kind: "docs", section })} />}
+
       <div className="min-w-0 flex-1">
         <header className="sticky top-0 z-10 hidden border-b border-white/10 bg-navy-950/80 px-8 py-4 backdrop-blur lg:block">
           <h2 className="text-sm font-medium text-slate-400">{title}</h2>
         </header>
-        <main className="mx-auto max-w-4xl px-4 py-6 sm:px-8 sm:py-8">
+        <main className={`mx-auto px-4 py-6 sm:px-8 sm:py-8 ${view.kind === "docs" ? "max-w-3xl" : "max-w-4xl"}`}>
           {revealed && <RevealedKeyNotice revealed={revealed} onDismiss={() => setRevealed(null)} />}
 
+          {view.kind === "docs" && (
+            <DocsView section={view.section} onSection={(section) => go({ kind: "docs", section })} onReading={setDocActive} />
+          )}
           {view.kind === "apps" && <AppsOverview apps={apps} go={go} />}
           {view.kind === "new" && (
             <CreateAppPage
@@ -217,7 +223,7 @@ export function DeveloperConsole() {
                 app={app}
                 section={view.section}
                 go={go}
-                openDocs={setDocs}
+                openDocs={(section) => go({ kind: "docs", section })}
                 onChanged={loadApps}
                 onRotated={async (apiKey) => {
                   setRevealed({ appName: app.name, apiKey, publicId: app.publicId, rotated: true });
@@ -232,70 +238,110 @@ export function DeveloperConsole() {
         </main>
       </div>
 
-      {docs && <DocsPanel section={docs} onSection={setDocs} onClose={() => setDocs(null)} />}
     </div>
   );
 }
 
-// ---- Docs, alongside the console ----
+// ---- Docs inside the console ----
+// Clicking Docs keeps the console sidebar and adds a second one with the
+// docs' sections; the main area shows the docs. Nothing else changes.
 
-function DocsPanel({ section, onSection, onClose }: { section: string; onSection: (s: string) => void; onClose: () => void }) {
-  const scroller = useRef<HTMLDivElement>(null);
+function DocsNav({ section, onSection }: { section: string; onSection: (s: string) => void }) {
+  return (
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-white/10 bg-navy-950 px-3 py-6 lg:flex">
+      <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Documentation</p>
+      <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+        {DOC_SECTIONS.map((d) => (
+          <button
+            key={d.id}
+            onClick={() => onSection(d.id)}
+            className={`block w-full rounded-lg px-3 py-1.5 text-left text-sm transition-colors ${
+              section === d.id ? "bg-white/10 font-medium text-white" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+            }`}
+          >
+            {d.label}
+          </button>
+        ))}
+      </nav>
+      <a
+        href={`/developers/docs#${section}`}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-4 flex items-center gap-2 border-t border-white/10 px-3 pt-4 text-xs text-slate-500 hover:text-slate-300"
+      >
+        <ExternalLink className="h-3.5 w-3.5" /> Open in a new tab
+      </a>
+    </aside>
+  );
+}
 
-  // Jump to the chosen section inside the panel, without touching the page.
+function DocsView({
+  section,
+  onSection,
+  onReading,
+}: {
+  section: string;
+  onSection: (s: string) => void;
+  onReading: (s: string) => void;
+}) {
+  const container = useRef<HTMLDivElement>(null);
+
+  // Picking a section scrolls to it (the first one: to the very top).
   useEffect(() => {
-    const box = scroller.current;
-    const target = box?.querySelector<HTMLElement>(`#${CSS.escape(section)}`);
-    if (box && target) box.scrollTo({ top: target.offsetTop - 16, behavior: "smooth" });
+    if (section === DOC_SECTIONS[0].id) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    const target = container.current?.querySelector<HTMLElement>(`#${CSS.escape(section)}`);
+    if (target) window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 72, behavior: "smooth" });
   }, [section]);
 
+  // Reading down the page moves the highlight in the docs sidebar. This only
+  // changes the highlight, never the URL, so it can't fight navigation.
+  useEffect(() => {
+    const headings = DOC_SECTIONS.map((d) => container.current?.querySelector<HTMLElement>(`#${CSS.escape(d.id)}`)).filter(
+      (h): h is HTMLElement => Boolean(h)
+    );
+    let frame = 0;
+    function onScroll() {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const current = [...headings].reverse().find((h) => h.getBoundingClientRect().top < 140) ?? headings[0];
+        if (current) onReading(current.id);
+      });
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [onReading]);
+
   return (
-    <>
-      {/* On narrower screens the panel slides over the page. */}
-      <div className="fixed inset-0 z-30 bg-black/50 xl:hidden" onClick={onClose} />
-      <aside
-        className="fixed inset-y-0 right-0 z-40 flex w-full max-w-xl flex-col border-l border-white/10 bg-navy-900 shadow-2xl xl:sticky xl:top-0 xl:z-auto xl:h-screen xl:w-[34rem] xl:max-w-none xl:shrink-0 xl:shadow-none"
-        aria-label="Documentation"
-      >
-        <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-          <BookOpen className="h-4 w-4 text-slate-400" />
-          <Select value={section} onChange={(e) => onSection(e.target.value)} className="!w-auto flex-1 !py-1.5">
-            {DOC_SECTIONS.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </Select>
-          <a
-            href={`/developers/docs#${section}`}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-white"
-            title="Open the docs in a new tab"
-          >
-            <ExternalLink className="h-4 w-4" />
-          </a>
-          <button onClick={onClose} className="rounded-md p-1.5 text-slate-400 hover:bg-white/5 hover:text-white" aria-label="Close docs">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div
-          ref={scroller}
-          className="relative min-h-0 flex-1 overflow-y-auto px-6 py-6 text-sm"
-          onClick={(e) => {
-            // Links to other doc sections scroll inside the panel instead of changing the page.
-            const a = (e.target as HTMLElement).closest("a");
-            const hash = a?.getAttribute("href");
-            if (hash?.startsWith("#")) {
-              e.preventDefault();
-              onSection(hash.slice(1));
-            }
-          }}
-        >
-          <DocsArticle />
-        </div>
-      </aside>
-    </>
+    <div
+      ref={container}
+      className="pb-24"
+      onClick={(e) => {
+        // In-page doc links move within the docs instead of leaving the console.
+        const href = (e.target as HTMLElement).closest("a")?.getAttribute("href");
+        if (href?.startsWith("#")) {
+          e.preventDefault();
+          onSection(href.slice(1));
+        }
+      }}
+    >
+      {/* On small screens, the docs sections as a picker. */}
+      <div className="mb-6 lg:hidden">
+        <Select value={section} onChange={(e) => onSection(e.target.value)}>
+          {DOC_SECTIONS.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.label}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <DocsArticle />
+    </div>
   );
 }
 
@@ -329,8 +375,6 @@ function ConsoleSidebar({
   view,
   go,
   email,
-  docsOpen,
-  onToggleDocs,
   onLogOut,
   onClose,
 }: {
@@ -338,8 +382,6 @@ function ConsoleSidebar({
   view: View;
   go: (v: View) => void;
   email: string;
-  docsOpen: boolean;
-  onToggleDocs: () => void;
   onLogOut: () => void;
   onClose: () => void;
 }) {
@@ -396,7 +438,7 @@ function ConsoleSidebar({
       </nav>
 
       <div className="mt-4 space-y-1 border-t border-white/10 pt-4">
-        <NavButton active={docsOpen} onClick={onToggleDocs} icon={BookOpen}>
+        <NavButton active={view.kind === "docs"} onClick={() => go({ kind: "docs", section: DOC_SECTIONS[0].id })} icon={BookOpen}>
           Docs
         </NavButton>
         <p className="truncate px-3 pt-2 text-xs text-slate-500">{email}</p>
