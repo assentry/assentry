@@ -232,7 +232,7 @@ export function DocsArticle() {
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Accept AI agents on your website</h1>
           <p className="mt-4 text-lg leading-relaxed text-slate-300">
             Assentry lets your site recognise an AI agent acting on behalf of a real, consenting person, and
-            pull only the profile data that person agreed to share, without the agent ever touching a
+            pull only the data that person agreed to share, without the agent ever touching a
             password.
           </p>
 
