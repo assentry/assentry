@@ -18,6 +18,10 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      # Assentry's public API address: used for the agent connector's OAuth
+      # addresses, file download links and local upload links.
+      - key: PUBLIC_BASE_URL
+        value: https://api.assentry.io
 
   - type: web
     name: assentry-frontend
@@ -26,8 +30,7 @@ services:
     buildCommand: cd frontend && npm install --include=dev && npm run build
     startCommand: cd frontend && npm start
     envVars:
-      # The personal app + marketing site now live on their own origin and
-      # talk to assentry-backend over HTTP (CORS-open, Bearer-token auth) — set
-      # this to assentry-backend's public Render URL after its first deploy.
+      # The site (assentry.io) talks to the API at api.assentry.io over HTTP
+      # (CORS-open, Bearer-token auth). Baked in at build time.
       - key: NEXT_PUBLIC_API_BASE_URL
-        sync: false
+        value: https://api.assentry.io

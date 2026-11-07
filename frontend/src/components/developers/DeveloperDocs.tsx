@@ -92,7 +92,6 @@ import { Assentry, assentryDiscovery, requireGrant, type AssentryRequest } from 
 
 const assentry = new Assentry({
   apiKey: process.env.ASSENTRY_API_KEY!,
-  baseUrl: "${BASE_URL}",
 });
 
 const app = express();
@@ -161,7 +160,6 @@ const DISCOVERY_DOC = `{
 
 const LINKING_CODE = `const assentry = new Assentry({
   apiKey: process.env.ASSENTRY_API_KEY!,
-  baseUrl: "${BASE_URL}",
   partnerId: process.env.ASSENTRY_PARTNER_PUBLIC_ID!, // your app's Public ID, safe to expose
 });
 
@@ -319,8 +317,8 @@ export function DocsArticle() {
               </li>
             </ol>
             <Note>
-              <C>baseUrl</C> defaults to <C>http://localhost:4000</C> (for running Assentry locally). In
-              production always set it to <C>{BASE_URL}</C>.
+              The SDK talks to <C>https://api.assentry.io</C> by default. Only set <C>baseUrl</C> to point it at a
+              local or test Assentry.
             </Note>
             <P>
               That&apos;s it. A browser agent sees a sign-in code at the bottom of your pages and approves it through
@@ -353,7 +351,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
               head={["Option", "Description"]}
               rows={[
                 [<C key="1">apiKey</C>, "Required. Your app's API key from the console. Server-side only."],
-                [<C key="2">baseUrl</C>, <>Assentry&apos;s API origin. Defaults to <C>http://localhost:4000</C>; set <C>{BASE_URL}</C> in production.</>],
+                [<C key="2">baseUrl</C>, <>Assentry&apos;s API origin. Defaults to <C>https://api.assentry.io</C>; only set it for a local or test Assentry.</>],
                 [<C key="3">partnerId</C>, <>Your app&apos;s <b>Public ID</b> from the console. Only needed for <C>getAccountLinkUrl</C>.</>],
               ]}
             />
