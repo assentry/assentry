@@ -37,7 +37,9 @@ export interface FieldDef {
 }
 
 const MB = 1024 * 1024;
-export const MAX_FILE_BYTES = 10 * MB;
+// Serverless hosts (Vercel) accept request bodies of about 4.5 MB, and files
+// are uploaded through Assentry unless S3-compatible storage is configured.
+export const MAX_FILE_BYTES = process.env.S3_BUCKET ? 10 * MB : 4 * MB;
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const DOCUMENT_TYPES = [
   "application/pdf",

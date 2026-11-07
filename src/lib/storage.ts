@@ -3,11 +3,14 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
+import { prisma } from "./prisma";
 
-// Where uploaded files live. S3-compatible object storage (Cloudflare R2,
-// Amazon S3, …) when S3_BUCKET is set; otherwise a local folder, for
-// development. Browsers upload straight to storage through a short-lived
-// signed URL, so file bytes never pass through Assentry on the way in.
+// Where uploaded files live:
+// - S3-compatible object storage (Cloudflare R2, Amazon S3, …) when S3_BUCKET
+//   is set: browsers upload straight to it through a short-lived signed URL.
+// - A local folder when FILE_STORAGE_DIR is set (development).
+// - Otherwise the database itself (StoredFile.data). Works on serverless
+//   hosts with no disk and no extra account; fine for files up to a few MB.
 
 export interface UploadTarget {
   url: string;
@@ -16,9 +19,11 @@ export interface UploadTarget {
 }
 
 export interface Storage {
-  kind: "s3" | "local";
+  kind: "s3" | "local" | "db";
   presignUpload(key: string, contentType: string, size: number, baseUrl: string): Promise<UploadTarget>;
   read(key: string): Promise<Buffer | null>;
+  /** For local and database storage: the upload route stores the bytes through this. */
+  write?(key: string, bytes: Buffer): Promise<void>;
   remove(key: string): Promise<void>;
 }
 
@@ -96,16 +101,40 @@ export async function writeLocal(key: string, bytes: Buffer): Promise<void> {
   await fs.writeFile(p, bytes);
 }
 
+function uploadThroughAssentry(key: string, contentType: string, size: number, baseUrl: string): UploadTarget {
+  return {
+    url: `${baseUrl}/files/local-upload/${signLocalUpload(key, contentType, size)}`,
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+  };
+}
+
+function databaseStorage(): Storage {
+  return {
+    kind: "db",
+    async presignUpload(key, contentType, size, baseUrl) {
+      return uploadThroughAssentry(key, contentType, size, baseUrl);
+    },
+    async read(key) {
+      const f = await prisma.storedFile.findUnique({ where: { storageKey: key }, select: { data: true } });
+      return f?.data ? Buffer.from(f.data) : null;
+    },
+    async write(key, bytes) {
+      await prisma.storedFile.update({ where: { storageKey: key }, data: { data: bytes } });
+    },
+    async remove() {
+      // The bytes go with the StoredFile row when it's deleted.
+    },
+  };
+}
+
 function localStorage(): Storage {
   return {
     kind: "local",
     async presignUpload(key, contentType, size, baseUrl) {
-      return {
-        url: `${baseUrl}/files/local-upload/${signLocalUpload(key, contentType, size)}`,
-        method: "PUT",
-        headers: { "Content-Type": contentType },
-      };
+      return uploadThroughAssentry(key, contentType, size, baseUrl);
     },
+    write: writeLocal,
     async read(key) {
       try {
         return await fs.readFile(localPath(key));
@@ -119,7 +148,11 @@ function localStorage(): Storage {
   };
 }
 
-export const storage: Storage = process.env.S3_BUCKET ? s3Storage() : localStorage();
+export const storage: Storage = process.env.S3_BUCKET
+  ? s3Storage()
+  : process.env.FILE_STORAGE_DIR
+    ? localStorage()
+    : databaseStorage();
 
 /**
  * Checks a file's first bytes match the type it claims to be, so a renamed

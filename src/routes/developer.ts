@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { z } from "zod";
 import { DeveloperRequest, requireDeveloper, signDeveloperSession } from "../lib/developerAuth";

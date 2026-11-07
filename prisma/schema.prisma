@@ -90,6 +90,9 @@ model StoredFile {
   size        Int
   sha256      String?
   storageKey  String    @unique
+  // The file itself, when files are kept in the database (the default
+  // without S3-compatible storage). Capped at MAX_FILE_BYTES.
+  data        Bytes?
   // Null until the upload is checked and accepted.
   completedAt DateTime?
   createdAt   DateTime  @default(now())

@@ -3,7 +3,7 @@ import express, { Response, Router } from "express";
 import { MAX_FILE_BYTES, STANDARD_FIELDS, TYPE_FORMATS } from "../lib/fields";
 import { PartnerRequest, requirePartner } from "../lib/partnerAuth";
 import { prisma } from "../lib/prisma";
-import { storage, verifyLocalUpload, writeLocal } from "../lib/storage";
+import { storage, verifyLocalUpload } from "../lib/storage";
 
 export const filesRouter = Router();
 
@@ -18,19 +18,19 @@ export function sendFile(res: Response, file: { filename: string; contentType: s
   res.send(bytes);
 }
 
-// Stand-in for a presigned storage URL when running with local storage.
+// Stand-in for a presigned storage URL when files are kept locally or in the database.
 filesRouter.put(
   "/local-upload/:token",
   express.raw({ type: () => true, limit: MAX_FILE_BYTES + 1024 }),
   async (req, res) => {
-    if (storage.kind !== "local") return res.status(404).end();
+    if (!storage.write) return res.status(404).end();
     const target = verifyLocalUpload(req.params.token);
     if (!target) return res.status(403).json({ error: "upload link expired or invalid" });
     const body = req.body as Buffer;
     if (!Buffer.isBuffer(body) || body.length !== target.size || req.headers["content-type"] !== target.contentType) {
       return res.status(400).json({ error: "upload doesn't match what was declared" });
     }
-    await writeLocal(target.key, body);
+    await storage.write(target.key, body);
     res.status(200).end();
   }
 );
