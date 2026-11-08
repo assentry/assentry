@@ -6,6 +6,7 @@ import { prisma } from "../lib/prisma";
 import { newVerificationToken, normaliseDomain, verifyPartnerDomain } from "../lib/domain";
 import { CUSTOM_KEY_PATTERN, FIELD_TYPES, standardField } from "../lib/fields";
 import { generateSecret, hashSecret } from "../lib/secrets";
+import { clearLoginFailures, clientIp, loginAllowed, recordLoginFailure, TOO_MANY_ATTEMPTS } from "../lib/security";
 
 // The developer console's API: developer accounts (separate from end-user
 // accounts) and the partner apps + API keys they own.
@@ -29,9 +30,13 @@ developerRouter.post("/auth/signup", async (req, res) => {
   if (await prisma.developer.findUnique({ where: { email } })) {
     return res.status(409).json({ error: "email already registered" });
   }
-  const developer = await prisma.developer.create({
-    data: { email, name, passwordHash: await bcrypt.hash(password, 12) },
-  });
+  const developer = await prisma.developer
+    .create({ data: { email, name, passwordHash: await bcrypt.hash(password, 12) } })
+    .catch((err) => {
+      if ((err as { code?: string }).code === "P2002") return null;
+      throw err;
+    });
+  if (!developer) return res.status(409).json({ error: "email already registered" });
   res.status(201).json({ token: signDeveloperSession(developer.id), developer: publicDeveloper(developer) });
 });
 
@@ -39,11 +44,15 @@ developerRouter.post("/auth/login", async (req, res) => {
   const parsed = credentialsSchema.pick({ email: true, password: true }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { email, password } = parsed.data;
+  const ip = clientIp(req);
+  if (!(await loginAllowed(`developer:${email}`, ip))) return res.status(429).json({ error: TOO_MANY_ATTEMPTS });
 
   const developer = await prisma.developer.findUnique({ where: { email } });
   if (!developer || !(await bcrypt.compare(password, developer.passwordHash))) {
+    await recordLoginFailure(`developer:${email}`, ip);
     return res.status(401).json({ error: "invalid email or password" });
   }
+  await clearLoginFailures(`developer:${email}`);
   res.json({ token: signDeveloperSession(developer.id), developer: publicDeveloper(developer) });
 });
 

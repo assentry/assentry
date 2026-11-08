@@ -1,3 +1,4 @@
+import "express-async-errors";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import "dotenv/config";
@@ -26,8 +27,22 @@ export const app = express();
 // (ngrok, a real reverse proxy) that terminates TLS and forwards plain HTTP -
 // otherwise the OAuth discovery metadata would advertise http:// endpoints.
 app.set("trust proxy", true);
+app.disable("x-powered-by");
+// Baseline headers for every response. The API returns JSON, and the few
+// server-rendered pages (login, consent, account linking) must never be
+// framed by another site.
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
+  if (!res.getHeader("Content-Security-Policy")) {
+    res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https: http://localhost:* http://127.0.0.1:*; frame-ancestors 'none'; base-uri 'none'");
+  }
+  next();
+});
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 // The personal app + marketing site used to be built into public/ and
@@ -81,5 +96,16 @@ app.use("/mcp", mcpHttpRouter);
 // Account linking (case 2. See STRATEGY.md): a partner's already-logged-in
 // human confirms their Assentry identity matches an existing account there.
 app.use("/link", linkRouter);
+
+// Anything unhandled: log it, and tell the caller nothing about the internals.
+app.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (res.headersSent) return next(err);
+  const status = (err as { status?: number; type?: string }).status;
+  if (status && status >= 400 && status < 500) {
+    return res.status(status).json({ error: status === 413 ? "request too large" : "bad request" });
+  }
+  console.error(err);
+  res.status(500).json({ error: "internal error" });
+});
 
 export default app;

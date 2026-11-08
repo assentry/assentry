@@ -6,6 +6,7 @@ import { generateAuthorizationCode, getBrowserSessionUserId, OAUTH_SESSION_COOKI
 import { pairwiseUserId } from "../lib/pairwise";
 import { PartnerRequest, requirePartner } from "../lib/partnerAuth";
 import { prisma } from "../lib/prisma";
+import { clearLoginFailures, clientIp, cookieOptions, csrfField, csrfValid, hashCode, loginAllowed, recordLoginFailure } from "../lib/security";
 
 // Case 2 from STRATEGY.md's "what 'the agent logs in' actually means": a
 // one-time, human-driven confirmation that an Assentry user is the same person
@@ -59,6 +60,7 @@ linkRouter.get("/authorize", async (req, res) => {
         `<p class="hint">${escapeHtml(partner.name)} wants to confirm this is you.</p>
         <form method="post" action="/link/login">
           ${hidden}
+          ${csrfField(req, res)}
           <label>Email</label><input name="email" type="email" required>
           <label>Password</label><input name="password" type="password" required>
           <button class="approve" type="submit">Log in</button>
@@ -67,12 +69,15 @@ linkRouter.get("/authorize", async (req, res) => {
     );
   }
 
+  const sessionUser = await prisma.user.findUnique({ where: { id: sessionUserId }, select: { email: true } });
   res.send(
     page(
       "Confirm your identity",
       `<p class="hint"><strong>${escapeHtml(partner.name)}</strong> wants to confirm that your account there belongs to you. This doesn't grant any new permission. It just links your existing account to your Assentry identity.</p>
+      <p class="hint">Signed in to Assentry as <strong>${escapeHtml(sessionUser?.email ?? "")}</strong>. Only confirm if that's you.</p>
       <form method="post" action="/link/authorize">
         ${hidden}
+        ${csrfField(req, res)}
         <button class="approve" type="submit" name="decision" value="approve">Confirm</button>
         <button class="deny" type="submit" name="decision" value="deny">Cancel</button>
       </form>`
@@ -86,6 +91,7 @@ const loginSchema = z.object({
   partner_id: z.string(),
   redirect_uri: z.string().url(),
   state: z.string().optional().default(""),
+  csrf: z.string().optional(),
 });
 
 linkRouter.post("/login", async (req, res) => {
@@ -93,18 +99,25 @@ linkRouter.post("/login", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).send(page("Invalid request", "<p>Something was missing from that submission.</p>"));
   }
-  const { email, password, ...linkParams } = parsed.data;
+  const { email, password, csrf: _csrf, ...linkParams } = parsed.data;
+  if (!csrfValid(req)) {
+    return res.status(403).send(page("Expired form", "<p>This form expired. Go back to the site and start again.</p>"));
+  }
+  const ip = clientIp(req);
+  const allowed = await loginAllowed(email, ip);
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = allowed ? await prisma.user.findUnique({ where: { email } }) : null;
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (allowed) await recordLoginFailure(email, ip);
     return res
-      .status(401)
+      .status(allowed ? 401 : 429)
       .send(
         page(
           "Log in to Assentry",
-          `<p class="error">Incorrect email or password.</p>
+          `<p class="error">${allowed ? "Incorrect email or password." : "Too many failed attempts. Wait 15 minutes and try again."}</p>
           <form method="post" action="/link/login">
             ${hiddenLinkFields(linkParams)}
+            ${csrfField(req, res)}
             <label>Email</label><input name="email" type="email" required>
             <label>Password</label><input name="password" type="password" required>
             <button class="approve" type="submit">Log in</button>
@@ -113,11 +126,8 @@ linkRouter.post("/login", async (req, res) => {
       );
   }
 
-  res.cookie(OAUTH_SESSION_COOKIE, signOAuthSession(user.id), {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 15 * 60 * 1000,
-  });
+  await clearLoginFailures(email);
+  res.cookie(OAUTH_SESSION_COOKIE, signOAuthSession(user.id), cookieOptions(req, 15 * 60 * 1000));
 
   const qs = new URLSearchParams(linkParams).toString();
   res.redirect(`/link/authorize?${qs}`);
@@ -142,6 +152,10 @@ linkRouter.post("/authorize", async (req, res) => {
     return res.status(400).send(page("Unknown app", "<p>This app isn't registered with Assentry, or its redirect address doesn't match.</p>"));
   }
 
+  if (!csrfValid(req)) {
+    return res.status(403).send(page("Expired form", "<p>This form expired. Go back to the site and start again.</p>"));
+  }
+
   if (decision === "deny") {
     const qs = new URLSearchParams({ error: "access_denied", state }).toString();
     return res.redirect(`${redirect_uri}?${qs}`);
@@ -155,7 +169,7 @@ linkRouter.post("/authorize", async (req, res) => {
   const code = generateAuthorizationCode();
   await prisma.accountLinkCode.create({
     data: {
-      code,
+      code: hashCode(code),
       partnerId: partner.id,
       userId,
       redirectUri: redirect_uri,
@@ -178,7 +192,7 @@ linkRouter.post("/token", requirePartner, async (req: PartnerRequest, res) => {
     return res.status(400).json({ error: "invalid_request" });
   }
 
-  const link = await prisma.accountLinkCode.findUnique({ where: { code: parsed.data.code } });
+  const link = await prisma.accountLinkCode.findUnique({ where: { code: hashCode(parsed.data.code) } });
   if (
     !link ||
     link.usedAt ||
@@ -188,7 +202,8 @@ linkRouter.post("/token", requirePartner, async (req: PartnerRequest, res) => {
     return res.status(400).json({ error: "invalid_grant" });
   }
 
-  await prisma.accountLinkCode.update({ where: { id: link.id }, data: { usedAt: new Date() } });
+  const claimed = await prisma.accountLinkCode.updateMany({ where: { id: link.id, usedAt: null }, data: { usedAt: new Date() } });
+  if (claimed.count === 0) return res.status(400).json({ error: "invalid_grant" });
 
   // The same per-site ID /verify returns for this person, so the site can
   // match later agent visits to the account it links here.

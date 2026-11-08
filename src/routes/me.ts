@@ -216,11 +216,13 @@ meRouter.post("/files/:id/complete", async (req: AuthedRequest, res) => {
   const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
   await prisma.storedFile.update({ where: { id: file.id }, data: { sha256, completedAt: new Date() } });
 
-  // Replace whatever file this detail had before.
+  // Replace whatever file this detail had before. Only a first file shares
+  // it with sites that asked; replacing one shares nothing new.
+  const previous = await prisma.profileValue.findUnique({ where: { userId_key: { userId: req.userId!, key: file.fieldKey } } });
   await removeValue(req.userId!, file.fieldKey);
   const value: FileValue = { fileId: file.id, filename: file.filename, contentType: file.contentType, size: file.size, sha256 };
   await prisma.profileValue.create({ data: { userId: req.userId!, key: file.fieldKey, value: value as object } });
-  await resolveRequests(req.userId!, file.fieldKey);
+  if (previous?.status !== "confirmed") await resolveRequests(req.userId!, file.fieldKey);
   res.json({ value });
 });
 

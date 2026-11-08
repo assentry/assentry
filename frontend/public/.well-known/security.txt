@@ -1,0 +1,11 @@
+Contact: mailto:info@assentry.io
+Expires: 2027-11-08T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://assentry.io/.well-known/security.txt
+Policy: https://assentry.io/.well-known/security.txt
+
+# Found a security problem in Assentry, its SDK or its agent connector?
+# Email the address above with the steps to reproduce it. Please give us
+# time to fix it before telling anyone else, and don't access other
+# people's data or disrupt the service while testing. We reply to every
+# report.

@@ -31,7 +31,7 @@ export function page(title: string, body: string): string {
   .muted { color: #64748b; }
 </style></head>
 <body>
-  <div class="brand"><div class="mark">H</div><div class="name">Assentry</div></div>
+  <div class="brand"><div class="mark">A</div><div class="name">Assentry</div></div>
   <div class="card">${body}</div>
 </body></html>`;
 }

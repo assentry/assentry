@@ -67,8 +67,11 @@ export type SetValueResult = { ok: true } | { ok: false; error: string; status?:
  * Saves a value for one of the person's details, normalised to its type.
  * Values from the person are confirmed straight away; agent suggestions wait
  * for the person unless they turned on "let my agent fill in missing details".
- * Confirming a value a site asked for also resolves that request, which is
- * the person's consent to share it with that site.
+ * Filling in a detail that was missing resolves the requests sites made for
+ * it, which is the person's consent to share it with those sites (the app
+ * says so next to each request). Editing a detail that was already filled
+ * in shares nothing new: a site that asked for it then still needs the
+ * person to press "Share".
  */
 export async function setValue(
   userId: string,
@@ -85,10 +88,11 @@ export async function setValue(
   const normalised = normaliseValue(def, raw, { country });
   if (!normalised.ok) return { ok: false, error: normalised.error };
 
+  const existing = await prisma.profileValue.findUnique({ where: { userId_key: { userId, key } } });
+  const wasMissing = existing?.status !== "confirmed";
   let status = "confirmed";
   if (opts.source === "agent") {
-    const existing = await prisma.profileValue.findUnique({ where: { userId_key: { userId, key } } });
-    if (existing?.status === "confirmed") {
+    if (!wasMissing) {
       return { ok: false, error: "the person has already filled this in", status: 409 };
     }
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { agentAutoFill: true } });
@@ -100,7 +104,7 @@ export async function setValue(
     create: { userId, key, value: normalised.value as object, source: opts.source, status, agentId: opts.agentId },
     update: { value: normalised.value as object, source: opts.source, status, agentId: opts.agentId ?? null },
   });
-  if (status === "confirmed") await resolveRequests(userId, key);
+  if (status === "confirmed" && wasMissing) await resolveRequests(userId, key);
   return { ok: true };
 }
 

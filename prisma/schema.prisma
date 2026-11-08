@@ -352,3 +352,13 @@ model PartnerField {
 
   @@unique([partnerId, key])
 }
+
+// Failed logins, for throttling password guessing. Keys are "email:<address>"
+// or "ip:<address>"; rows older than the window are ignored and pruned.
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}

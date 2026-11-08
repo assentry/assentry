@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { verifyPkce } from "../lib/oauth";
 import { generateSecret, hashSecret } from "../lib/secrets";
+import { hashCode } from "../lib/security";
 
 export const oauthTokenRouter = Router();
 
@@ -25,7 +26,7 @@ oauthTokenRouter.post("/token", async (req, res) => {
   const { code, redirect_uri, client_id, code_verifier } = parsed.data;
 
   const authCode = await prisma.oAuthAuthorizationCode.findUnique({
-    where: { code },
+    where: { code: hashCode(code) },
     include: { client: true },
   });
 
@@ -45,11 +46,14 @@ oauthTokenRouter.post("/token", async (req, res) => {
 
   const accessToken = generateSecret("agent");
 
+  // Claimed conditionally, so two exchanges of the same code can't both succeed.
+  const claimed = await prisma.oAuthAuthorizationCode.updateMany({
+    where: { id: authCode.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+  if (claimed.count === 0) return res.status(400).json({ error: "invalid_grant" });
+
   await prisma.$transaction(async (tx) => {
-    await tx.oAuthAuthorizationCode.update({
-      where: { id: authCode.id },
-      data: { usedAt: new Date() },
-    });
     await tx.agent.update({
       where: { id: authCode.agentId },
       data: { secretHash: hashSecret(accessToken) },

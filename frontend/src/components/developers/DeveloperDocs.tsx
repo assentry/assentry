@@ -165,16 +165,22 @@ const LINKING_CODE = `const assentry = new Assentry({
 
 // 1. Your already-logged-in user clicks "Link my Assentry account".
 app.get("/link/start", (req, res) => {
+  // A fresh random value, kept in their session and checked on the way back,
+  // so nobody can send your user a link that finishes someone else's linking.
+  req.session.linkState = crypto.randomBytes(32).toString("base64url");
   res.redirect(
     assentry.getAccountLinkUrl({
       redirectUri: "https://yoursite.com/link/callback", // must be registered in the console
-      state: req.session.user.id,                          // echoed back to you unchanged
+      state: req.session.linkState,                        // echoed back to you unchanged
     })
   );
 });
 
 // 2. Assentry sends them back with a one-time code (valid 60 seconds).
 app.get("/link/callback", async (req, res) => {
+  const expected = req.session.linkState;
+  delete req.session.linkState;
+  if (!expected || req.query.state !== expected) return res.status(400).send("Linking expired. Try again.");
   if (req.query.error === "access_denied") return res.send("Linking cancelled.");
   const { userId } = await assentry.exchangeLinkCode(String(req.query.code));
   await db.users.update(req.session.user.id, { assentryUserId: userId });
@@ -473,7 +479,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             </P>
 
             <H3 id="sdk-linking">assentry.getAccountLinkUrl(params) · assentry.exchangeLinkCode(code)</H3>
-            <Signature>{"getAccountLinkUrl({ redirectUri: string, state?: string }): string"}</Signature>
+            <Signature>{"getAccountLinkUrl({ redirectUri: string, state: string }): string"}</Signature>
             <Signature>{"exchangeLinkCode(code: string): Promise<{ userId: string }>"}</Signature>
             <P>
               See <a href="#account-linking" className="text-neutral-300 hover:text-neutral-200">Account linking</a>.{" "}

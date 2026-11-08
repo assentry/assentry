@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { clearLoginFailures, clientIp, loginAllowed, recordLoginFailure, TOO_MANY_ATTEMPTS } from "../lib/security";
 import { AuthedRequest, requireUser, signUserSession } from "../lib/userAuth";
 
 export const authRouter = Router();
@@ -25,9 +26,11 @@ authRouter.post("/signup", async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = await prisma.user.create({
-    data: { email, passwordHash, name },
+  const user = await prisma.user.create({ data: { email, passwordHash, name } }).catch((err) => {
+    if ((err as { code?: string }).code === "P2002") return null;
+    throw err;
   });
+  if (!user) return res.status(409).json({ error: "email already registered" });
 
   const token = signUserSession(user.id);
   res.status(201).json({
@@ -44,11 +47,15 @@ authRouter.post("/login", async (req, res) => {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
   const { email, password } = parsed.data;
+  const ip = clientIp(req);
+  if (!(await loginAllowed(email, ip))) return res.status(429).json({ error: TOO_MANY_ATTEMPTS });
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    await recordLoginFailure(email, ip);
     return res.status(401).json({ error: "invalid email or password" });
   }
+  await clearLoginFailures(email);
 
   const token = signUserSession(user.id);
   res.json({ token, user: { id: user.id, email: user.email, name: user.name } });

@@ -30,6 +30,10 @@ filesRouter.put(
     if (!Buffer.isBuffer(body) || body.length !== target.size || req.headers["content-type"] !== target.contentType) {
       return res.status(400).json({ error: "upload doesn't match what was declared" });
     }
+    // One upload per file, before it's checked: a finished file can't be
+    // swapped for different bytes through the same link.
+    const file = await prisma.storedFile.findUnique({ where: { storageKey: target.key }, select: { completedAt: true } });
+    if (!file || file.completedAt) return res.status(409).json({ error: "this upload is already finished" });
     await storage.write(target.key, body);
     res.status(200).end();
   }

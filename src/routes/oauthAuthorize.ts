@@ -9,6 +9,16 @@ import {
   signOAuthSession,
 } from "../lib/oauth";
 import { prisma } from "../lib/prisma";
+import {
+  clearLoginFailures,
+  clientIp,
+  cookieOptions,
+  csrfField,
+  csrfValid,
+  hashCode,
+  loginAllowed,
+  recordLoginFailure,
+} from "../lib/security";
 
 export const oauthAuthorizeRouter = Router();
 
@@ -85,6 +95,7 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
         `<p class="hint">${escapeHtml(client.clientName ?? "An AI assistant")} wants to connect to your Assentry account.</p>
         <form method="post" action="/oauth/login">
           ${hidden}
+          ${csrfField(req, res)}
           <label>Email</label><input name="email" type="email" required>
           <label>Password</label><input name="password" type="password" required>
           <button class="approve" type="submit">Log in</button>
@@ -95,6 +106,7 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
 
   // Reconnecting an assistant shouldn't leave a stale connection behind:
   // offer to replace an existing one, carrying its permissions over.
+  const sessionUser = await prisma.user.findUnique({ where: { id: sessionUserId }, select: { email: true } });
   const existing = await prisma.agent.findMany({
     where: { userId: sessionUserId, revokedAt: null, secretHash: { not: null } },
     orderBy: { createdAt: "desc" },
@@ -103,20 +115,22 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
     ? `<label>Already connected</label>
         ${existing
           .map(
-            (a, i) => `<label class="choice"><input type="radio" name="replace_agent" value="${escapeHtml(a.id)}"${i === 0 ? " checked" : ""}>
+            (a, i) => `<label class="choice"><input type="radio" name="replace_agent" value="${escapeHtml(a.id)}">
           Replace ${escapeHtml(a.label || PLATFORM_LABELS[a.platform as keyof typeof PLATFORM_LABELS] || a.platform)}
           <span class="muted">(connected ${a.createdAt.toISOString().slice(0, 10)}). Its permissions move to this connection and the old one is disconnected.</span></label>`
           )
           .join("")}
-        <label class="choice"><input type="radio" name="replace_agent" value=""> Keep it and add this as another connection</label>`
+        <label class="choice"><input type="radio" name="replace_agent" value="" checked> Keep it and add this as another connection</label>`
     : "";
 
   res.send(
     page(
       "Connect an agent",
       `<p class="hint"><strong>${escapeHtml(client.clientName ?? "An AI assistant")}</strong> wants to connect to your Assentry account. It won't be able to do anything until you separately authorise it for specific actions in the personal app.</p>
+      <p class="hint">Signed in as <strong>${escapeHtml(sessionUser?.email ?? "")}</strong>. After you connect, you'll be sent to <strong>${escapeHtml(new URL(redirect_uri).host)}</strong>. Only continue if that's the AI app you're setting up.</p>
       <form method="post" action="/oauth/authorize">
         ${hidden}
+        ${csrfField(req, res)}
         ${replaceChoices}
         <label>Which AI is this?</label>
         <select name="platform">
@@ -128,6 +142,11 @@ oauthAuthorizeRouter.get("/authorize", async (req, res) => {
         <input name="label" placeholder="e.g. My personal assistant">
         <button class="approve" type="submit" name="decision" value="approve">Connect</button>
         <button class="deny" type="submit" name="decision" value="deny">Cancel</button>
+      </form>
+      <form method="post" action="/oauth/logout">
+        ${hidden}
+        ${csrfField(req, res)}
+        <button class="deny" style="margin-left:0" type="submit">Not you? Log out</button>
       </form>`
     )
   );
@@ -142,6 +161,7 @@ const loginSchema = z.object({
   state: z.string().optional().default(""),
   code_challenge: z.string(),
   code_challenge_method: z.literal("S256"),
+  csrf: z.string().optional(),
 });
 
 oauthAuthorizeRouter.post("/login", async (req, res) => {
@@ -149,18 +169,25 @@ oauthAuthorizeRouter.post("/login", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).send(page("Invalid request", "<p>Something was missing from that submission.</p>"));
   }
-  const { email, password, ...oauthParams } = parsed.data;
+  const { email, password, csrf: _csrf, ...oauthParams } = parsed.data;
+  if (!csrfValid(req)) {
+    return res.status(403).send(page("Expired form", "<p>This form expired. Go back to your AI app and start connecting again.</p>"));
+  }
+  const ip = clientIp(req);
+  const allowed = await loginAllowed(email, ip);
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = allowed ? await prisma.user.findUnique({ where: { email } }) : null;
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (allowed) await recordLoginFailure(email, ip);
     return res
-      .status(401)
+      .status(allowed ? 401 : 429)
       .send(
         page(
           "Log in to Assentry",
-          `<p class="error">Incorrect email or password.</p>
+          `<p class="error">${allowed ? "Incorrect email or password." : "Too many failed attempts. Wait 15 minutes and try again."}</p>
           <form method="post" action="/oauth/login">
             ${hiddenOAuthFields(oauthParams)}
+            ${csrfField(req, res)}
             <label>Email</label><input name="email" type="email" required>
             <label>Password</label><input name="password" type="password" required>
             <button class="approve" type="submit">Log in</button>
@@ -169,11 +196,8 @@ oauthAuthorizeRouter.post("/login", async (req, res) => {
       );
   }
 
-  res.cookie(OAUTH_SESSION_COOKIE, signOAuthSession(user.id), {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 15 * 60 * 1000,
-  });
+  await clearLoginFailures(email);
+  res.cookie(OAUTH_SESSION_COOKIE, signOAuthSession(user.id), cookieOptions(req, 15 * 60 * 1000));
 
   const qs = new URLSearchParams(oauthParams).toString();
   res.redirect(`/oauth/authorize?${qs}`);
@@ -208,6 +232,10 @@ oauthAuthorizeRouter.post("/authorize", async (req, res) => {
     return res.status(400).send(page("Unknown app", "<p>This app isn't registered with Assentry, or its redirect address doesn't match.</p>"));
   }
 
+  if (!csrfValid(req)) {
+    return res.status(403).send(page("Expired form", "<p>This form expired. Go back to your AI app and start connecting again.</p>"));
+  }
+
   if (decision === "deny") {
     const qs = new URLSearchParams({ error: "access_denied", state }).toString();
     return res.redirect(`${redirect_uri}?${qs}`);
@@ -230,7 +258,7 @@ oauthAuthorizeRouter.post("/authorize", async (req, res) => {
   const code = generateAuthorizationCode();
   await prisma.oAuthAuthorizationCode.create({
     data: {
-      code,
+      code: hashCode(code),
       clientId: client.id,
       userId,
       agentId: agent.id,
@@ -244,4 +272,15 @@ oauthAuthorizeRouter.post("/authorize", async (req, res) => {
 
   const qs = new URLSearchParams({ code, state }).toString();
   res.redirect(`${redirect_uri}?${qs}`);
+});
+
+// "Not you?": ends the browser session and goes back to the login form for
+// the same connection request.
+oauthAuthorizeRouter.post("/logout", async (req, res) => {
+  const parsed = authorizeQuerySchema.safeParse(req.body);
+  if (!parsed.success || !csrfValid(req)) {
+    return res.status(400).send(page("Invalid request", "<p>Something was missing from that submission.</p>"));
+  }
+  res.clearCookie(OAUTH_SESSION_COOKIE, { path: "/" });
+  res.redirect(`/oauth/authorize?${new URLSearchParams(parsed.data).toString()}`);
 });
