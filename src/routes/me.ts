@@ -3,7 +3,17 @@ import { Router } from "express";
 import { z } from "zod";
 import { FIELD_TYPES, GENERIC_FILE_RULES, personKey, STANDARD_FIELDS, TYPE_FORMATS, type FieldDef, type FileValue } from "../lib/fields";
 import { prisma } from "../lib/prisma";
-import { deleteFile, fieldDefFor, keyKind, publicBaseUrl, removeValue, resolveRequests, setValue } from "../lib/profile";
+import {
+  deleteFile,
+  fieldDefFor,
+  keyKind,
+  partnerFieldDef,
+  publicBaseUrl,
+  removeValue,
+  requestMissingDetails,
+  resolveRequests,
+  setValue,
+} from "../lib/profile";
 import { contentMatchesType, storage } from "../lib/storage";
 import { sendFile } from "./files";
 import { AuthedRequest, requireUser } from "../lib/userAuth";
@@ -90,11 +100,13 @@ async function openRequests(userId: string) {
 }
 
 meRouter.get("/notices", async (req: AuthedRequest, res) => {
-  const [requests, suggestions] = await Promise.all([
+  const [requests, suggestions, sites] = await Promise.all([
     openRequests(req.userId!),
     prisma.profileValue.count({ where: { userId: req.userId!, status: "suggested" } }),
+    prisma.siteApproval.count({ where: { userId: req.userId!, allowedAt: null, declinedAt: null } }),
   ]);
-  res.json({ requests, suggestions, count: requests.length + suggestions });
+  // `count` is for the Profile badge; `sites` for the Sign-ins badge.
+  res.json({ requests, suggestions, count: requests.length + suggestions, sites });
 });
 
 meRouter.put("/profile/values/:key", async (req: AuthedRequest, res) => {
@@ -286,5 +298,89 @@ meRouter.post("/sign-ins/:id/end", async (req: AuthedRequest, res) => {
       },
     });
   }
+  res.json({ ok: true });
+});
+
+// ---- Sites ----
+// Each site the person's agents want to sign in to, allowed once by the
+// person (see lib/siteApproval.ts).
+
+meRouter.get("/sites", async (req: AuthedRequest, res) => {
+  const rows = await prisma.siteApproval.findMany({
+    where: { userId: req.userId! },
+    include: { partner: { select: { name: true, domain: true, revokedAt: true, fields: true } } },
+    orderBy: { requestedAt: "desc" },
+  });
+  const agentIds = rows.map((r) => r.agentId).filter((id): id is string => Boolean(id));
+  const agents = await prisma.agent.findMany({
+    where: { id: { in: agentIds }, userId: req.userId! },
+    select: { id: true, label: true, platform: true },
+  });
+  const describeSite = (r: (typeof rows)[number]) => ({
+    id: r.id,
+    site: { name: r.partner.name, domain: r.partner.domain },
+    agent: agents.find((a) => a.id === r.agentId) ?? null,
+    asksFor: r.partner.fields.map((f) => {
+      const def = partnerFieldDef(f);
+      return { label: def.label, required: f.required };
+    }),
+    requestedAt: r.requestedAt,
+    allowedAt: r.allowedAt,
+  });
+  res.json({
+    pending: rows.filter((r) => !r.allowedAt && !r.declinedAt && !r.partner.revokedAt).map(describeSite),
+    allowed: rows.filter((r) => r.allowedAt).map(describeSite),
+  });
+});
+
+async function ownSite(req: AuthedRequest) {
+  return prisma.siteApproval.findFirst({ where: { id: req.params.id, userId: req.userId! }, include: { partner: true } });
+}
+
+meRouter.post("/sites/:id/allow", async (req: AuthedRequest, res) => {
+  const row = await ownSite(req);
+  if (!row) return res.status(404).json({ error: "site not found" });
+  if (!row.allowedAt) {
+    await prisma.siteApproval.update({ where: { id: row.id }, data: { allowedAt: new Date(), declinedAt: null } });
+    await prisma.auditLog.create({
+      data: { userId: req.userId!, partnerId: row.partnerId, action: "site_allowed", result: "allowed", reason: "user_requested", metadata: {} },
+    });
+    // Now that the site may sign in, ask the person for anything it needs that's missing.
+    const waiting = await prisma.signInRequest.findFirst({
+      where: { partnerId: row.partnerId, grant: { userId: req.userId! }, collectedAt: null, approvedAt: { not: null } },
+      include: { grant: true },
+      orderBy: { approvedAt: "desc" },
+    });
+    if (waiting?.grant) await requestMissingDetails(row.partner, waiting.grant);
+  }
+  res.json({ ok: true });
+});
+
+meRouter.post("/sites/:id/decline", async (req: AuthedRequest, res) => {
+  const row = await ownSite(req);
+  if (!row) return res.status(404).json({ error: "site not found" });
+  if (row.allowedAt) return res.status(409).json({ error: "already allowed; remove it instead" });
+  await prisma.siteApproval.update({ where: { id: row.id }, data: { declinedAt: new Date() } });
+  await prisma.auditLog.create({
+    data: { userId: req.userId!, partnerId: row.partnerId, action: "site_declined", result: "denied", reason: "user_requested", metadata: {} },
+  });
+  res.json({ ok: true });
+});
+
+// Removing a site ends every sign-in there and stops every credential for
+// it at once; the person is asked again if an agent goes back.
+meRouter.post("/sites/:id/remove", async (req: AuthedRequest, res) => {
+  const row = await ownSite(req);
+  if (!row) return res.status(404).json({ error: "site not found" });
+  await prisma.$transaction([
+    prisma.signInRequest.updateMany({
+      where: { partnerId: row.partnerId, grant: { userId: req.userId! }, collectedAt: { not: null }, endedAt: null },
+      data: { endedAt: new Date() },
+    }),
+    prisma.siteApproval.delete({ where: { id: row.id } }),
+    prisma.auditLog.create({
+      data: { userId: req.userId!, partnerId: row.partnerId, action: "site_removed", result: "allowed", reason: "user_requested", metadata: {} },
+    }),
+  ]);
   res.json({ ok: true });
 });

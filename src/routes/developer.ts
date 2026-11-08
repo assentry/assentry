@@ -6,7 +6,16 @@ import { prisma } from "../lib/prisma";
 import { newVerificationToken, normaliseDomain, verifyPartnerDomain } from "../lib/domain";
 import { CUSTOM_KEY_PATTERN, FIELD_TYPES, standardField } from "../lib/fields";
 import { generateSecret, hashSecret } from "../lib/secrets";
-import { clearLoginFailures, clientIp, loginAllowed, recordLoginFailure, TOO_MANY_ATTEMPTS } from "../lib/security";
+import {
+  clearLoginFailures,
+  clientIp,
+  loginAllowed,
+  passwordMatches,
+  recordLoginFailure,
+  signupAllowed,
+  TOO_MANY_ATTEMPTS,
+  TOO_MANY_SIGNUPS,
+} from "../lib/security";
 
 // The developer console's API: developer accounts (separate from end-user
 // accounts) and the partner apps + API keys they own.
@@ -26,6 +35,7 @@ developerRouter.post("/auth/signup", async (req, res) => {
   const parsed = credentialsSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { email, password, name } = parsed.data;
+  if (!(await signupAllowed(clientIp(req)))) return res.status(429).json({ error: TOO_MANY_SIGNUPS });
 
   if (await prisma.developer.findUnique({ where: { email } })) {
     return res.status(409).json({ error: "email already registered" });
@@ -37,7 +47,7 @@ developerRouter.post("/auth/signup", async (req, res) => {
       throw err;
     });
   if (!developer) return res.status(409).json({ error: "email already registered" });
-  res.status(201).json({ token: signDeveloperSession(developer.id), developer: publicDeveloper(developer) });
+  res.status(201).json({ token: signDeveloperSession(developer.id, developer.sessionVersion), developer: publicDeveloper(developer) });
 });
 
 developerRouter.post("/auth/login", async (req, res) => {
@@ -48,12 +58,18 @@ developerRouter.post("/auth/login", async (req, res) => {
   if (!(await loginAllowed(`developer:${email}`, ip))) return res.status(429).json({ error: TOO_MANY_ATTEMPTS });
 
   const developer = await prisma.developer.findUnique({ where: { email } });
-  if (!developer || !(await bcrypt.compare(password, developer.passwordHash))) {
+  if (!(await passwordMatches(developer?.passwordHash, password)) || !developer) {
     await recordLoginFailure(`developer:${email}`, ip);
     return res.status(401).json({ error: "invalid email or password" });
   }
   await clearLoginFailures(`developer:${email}`);
-  res.json({ token: signDeveloperSession(developer.id), developer: publicDeveloper(developer) });
+  res.json({ token: signDeveloperSession(developer.id, developer.sessionVersion), developer: publicDeveloper(developer) });
+});
+
+// Ends every console session this developer has, on every device.
+developerRouter.post("/auth/logout-everywhere", requireDeveloper, async (req: DeveloperRequest, res) => {
+  await prisma.developer.update({ where: { id: req.developerId! }, data: { sessionVersion: { increment: 1 } } });
+  res.json({ ok: true });
 });
 
 developerRouter.get("/auth/me", requireDeveloper, async (req: DeveloperRequest, res) => {

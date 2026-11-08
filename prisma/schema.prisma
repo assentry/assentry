@@ -19,6 +19,10 @@ model User {
   // time. Off by default: agent suggestions wait for the person to confirm.
   agentAutoFill Boolean @default(false)
 
+  // Part of every session token; raising it ends all of this person's
+  // sessions at once ("log out everywhere").
+  sessionVersion Int @default(0)
+
   agents        Agent[]
   grants        Grant[]
   auditLogs     AuditLog[]
@@ -26,6 +30,7 @@ model User {
   customFields  UserField[]
   fieldRequests FieldRequest[]
   files         StoredFile[]
+  siteApprovals SiteApproval[]
 }
 
 // One profile detail's value. `key` is a standard key ("email"), a person's
@@ -130,6 +135,13 @@ model Agent {
   // exchange (the brief window while the AI client completes the OAuth
   // dance).
   secretHash String? @unique
+  // Access tokens are short-lived; the AI client renews them with a
+  // single-use refresh token, which is replaced on every use.
+  accessExpiresAt  DateTime?
+  refreshHash      String?   @unique
+  refreshExpiresAt DateTime?
+  // The OAuth client this connection was made through; only it may renew.
+  oauthClientId    String?
 
   grants    Grant[]
   auditLogs AuditLog[]
@@ -205,6 +217,8 @@ model Developer {
   passwordHash String
   name         String?
   createdAt    DateTime @default(now())
+  // See User.sessionVersion.
+  sessionVersion Int @default(0)
 
   partners Partner[]
 }
@@ -253,6 +267,7 @@ model Partner {
   auditLogs        AuditLog[]
   accountLinkCodes AccountLinkCode[]
   signInRequests   SignInRequest[]
+  siteApprovals    SiteApproval[]
 }
 
 // Case 2 from STRATEGY.md's "what 'the agent logs in' actually means":
@@ -361,4 +376,22 @@ model LoginAttempt {
   createdAt DateTime @default(now())
 
   @@index([key, createdAt])
+}
+
+// A person's yes (or no) to a site, asked the first time one of their agents
+// signs in to it or asks for a credential for it. Until it's allowed, the
+// site gets nothing; removing it ends access at once.
+model SiteApproval {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partnerId   String
+  partner     Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  // The agent that asked, shown to the person.
+  agentId     String?
+  requestedAt DateTime  @default(now())
+  allowedAt   DateTime?
+  declinedAt  DateTime?
+
+  @@unique([userId, partnerId])
 }

@@ -1,6 +1,7 @@
 import { issueCredential } from "./credential";
 import { normaliseDomain } from "./domain";
 import { prisma } from "./prisma";
+import { askPersonAboutSite } from "./siteApproval";
 
 export interface AgentGrantSummary {
   id: string;
@@ -23,7 +24,8 @@ export async function listGrantsForAgent(agentId: string): Promise<AgentGrantSum
 
 export type CredentialOutcome =
   | { ok: true; credential: string; expiresAt: Date; siteName: string; site: string }
-  | { ok: false; error: "grant_not_found" | "grant_revoked" | "grant_expired" | "unknown_site" };
+  | { ok: false; error: "grant_not_found" | "grant_revoked" | "grant_expired" | "unknown_site" }
+  | { ok: false; error: "awaiting_person"; siteName: string; site: string };
 
 /**
  * A credential for presenting in an Authorization header, issued for one
@@ -44,6 +46,11 @@ export async function issueCredentialForAgentGrant(
     ? await prisma.partner.findFirst({ where: { domain, domainVerifiedAt: { not: null }, revokedAt: null } })
     : null;
   if (!site || !site.domain) return { ok: false, error: "unknown_site" };
+
+  // First time for this site: the person allows it in the app first.
+  if ((await askPersonAboutSite(grant.userId, site.id, agentId)) !== "allowed") {
+    return { ok: false, error: "awaiting_person", siteName: site.name, site: site.domain };
+  }
 
   const credential = await issueCredential({ grantId: grant.id, site: site.domain }, grant.expiresAt);
 

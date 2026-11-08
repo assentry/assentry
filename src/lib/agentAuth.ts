@@ -16,7 +16,16 @@ export async function requireAgentKey(
   next: NextFunction
 ) {
   const header = req.headers.authorization;
+  // Points MCP clients at how to connect, or tells them to renew their token.
+  const challenge = (error?: string) => {
+    const base = process.env.PUBLIC_BASE_URL ?? `${req.protocol}://${req.get("host")}`;
+    res.setHeader(
+      "WWW-Authenticate",
+      `Bearer resource_metadata="${base}/.well-known/oauth-protected-resource"${error ? `, error="${error}"` : ""}`
+    );
+  };
   if (!header?.startsWith("Bearer ")) {
+    challenge();
     return res.status(401).json({ error: "missing bearer token" });
   }
   const key = header.slice("Bearer ".length);
@@ -24,8 +33,9 @@ export async function requireAgentKey(
   const agent = await prisma.agent.findUnique({
     where: { secretHash: hashSecret(key) },
   });
-  if (!agent || agent.revokedAt) {
-    return res.status(401).json({ error: "invalid or revoked agent key" });
+  if (!agent || agent.revokedAt || (agent.accessExpiresAt && agent.accessExpiresAt.getTime() < Date.now())) {
+    challenge("invalid_token");
+    return res.status(401).json({ error: "invalid, expired or revoked agent key" });
   }
   req.agent = { id: agent.id, userId: agent.userId };
   next();

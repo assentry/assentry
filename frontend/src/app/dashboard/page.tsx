@@ -22,11 +22,13 @@ export default function DashboardPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [notices, setNotices] = useState(0);
+  const [siteNotices, setSiteNotices] = useState(0);
 
   const refreshNotices = useCallback(async () => {
     try {
-      const data = await api.get<{ count: number }>("/me/notices");
+      const data = await api.get<{ count: number; sites: number }>("/me/notices");
       setNotices(data.count);
+      setSiteNotices(data.sites);
     } catch {
       // The badge is a convenience; ignore failures.
     }
@@ -71,9 +73,26 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // A site waiting for the person to allow it should show up while they're here.
+  useEffect(() => {
+    if (!user) return;
+    const timer = setInterval(() => {
+      if (!document.hidden) refreshNotices();
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [user, refreshNotices]);
+
   function signOut() {
     clearToken();
     router.replace("/login");
+  }
+
+  async function signOutEverywhere() {
+    try {
+      await api.post("/auth/logout-everywhere");
+    } finally {
+      signOut();
+    }
   }
 
   if (checkingSession || !user) return null;
@@ -89,7 +108,14 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-navy-950 lg:flex-row">
-      <Sidebar tab={tab} onTabChange={setTab} email={user.email} onSignOut={signOut} badges={{ profile: notices }} />
+      <Sidebar
+        tab={tab}
+        onTabChange={setTab}
+        email={user.email}
+        onSignOut={signOut}
+        onSignOutEverywhere={signOutEverywhere}
+        badges={{ profile: notices, signins: siteNotices }}
+      />
 
       <div className="flex-1 overflow-y-auto">
         <header className="sticky top-0 z-10 hidden border-b border-white/10 bg-navy-950/80 px-8 py-4 backdrop-blur lg:block">
@@ -105,7 +131,7 @@ export default function DashboardPage() {
               {tab === "profile" && <ProfilePanel accountEmail={user.email} onNoticesChanged={refreshNotices} />}
               {tab === "agents" && <AgentsPanel agents={agents} onChange={refreshAll} />}
               {tab === "grants" && <GrantsPanel agents={agents} grants={grants} onChange={refreshAll} />}
-              {tab === "signins" && <SignInsPanel />}
+              {tab === "signins" && <SignInsPanel onSitesChanged={refreshNotices} />}
               {tab === "audit" && <AuditPanel logs={logs} />}
             </div>
           )}

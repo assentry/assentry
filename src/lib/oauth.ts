@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { sessionKeys } from "./keys";
+import { prisma } from "./prisma";
 
 export const OAUTH_SESSION_COOKIE = "assentry_oauth_session";
 
@@ -8,19 +9,23 @@ export const OAUTH_SESSION_COOKIE = "assentry_oauth_session";
 // pages specifically. Deliberately separate from the SPA's bearer-token
 // session (lib/userAuth.ts), this one lives in a cookie because it has to
 // survive a plain HTML form POST and a redirect, not a fetch() call.
-export function signOAuthSession(userId: string): string {
-  return jwt.sign({ sub: userId }, sessionKeys.oauthBrowser, { expiresIn: "15m" });
+export function signOAuthSession(userId: string, sessionVersion: number): string {
+  return jwt.sign({ sub: userId, v: sessionVersion }, sessionKeys.oauthBrowser, { expiresIn: "15m" });
 }
 
-export function verifyOAuthSession(token: string): string | null {
+export async function verifyOAuthSession(token: string): Promise<string | null> {
+  let payload: { sub?: string; kind?: string; v?: number };
   try {
-    const payload = jwt.verify(token, sessionKeys.oauthBrowser, { algorithms: ["HS256"] }) as { sub?: string; kind?: string };
-    // Developer sessions (kind: "developer") are never end-user sessions.
-    if (typeof payload.sub !== "string" || payload.kind !== undefined) return null;
-    return payload.sub;
+    payload = jwt.verify(token, sessionKeys.oauthBrowser, { algorithms: ["HS256"] }) as typeof payload;
   } catch {
     return null;
   }
+  // Developer sessions (kind: "developer") are never end-user sessions.
+  if (typeof payload.sub !== "string" || payload.kind !== undefined) return null;
+  // "Log out everywhere" ends these too.
+  const user = await prisma.user.findUnique({ where: { id: payload.sub }, select: { sessionVersion: true } });
+  if (!user || user.sessionVersion !== (payload.v ?? 0)) return null;
+  return payload.sub;
 }
 
 export function generateAuthorizationCode(): string {
@@ -29,7 +34,7 @@ export function generateAuthorizationCode(): string {
 
 // Shared by the OAuth consent pages and the account-linking pages, both
 // are plain server-rendered flows gated on the same browser session cookie.
-export function getBrowserSessionUserId(req: { cookies?: Record<string, string> }): string | null {
+export async function getBrowserSessionUserId(req: { cookies?: Record<string, string> }): Promise<string | null> {
   const cookie = req.cookies?.[OAUTH_SESSION_COOKIE];
   if (!cookie) return null;
   return verifyOAuthSession(cookie);

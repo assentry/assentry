@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import type { CookieOptions, Request, Response } from "express";
 import { prisma } from "./prisma";
@@ -81,4 +82,31 @@ export function csrfValid(req: Request): boolean {
 /** SHA-256 fingerprint for one-time codes, so the database never holds live ones. */
 export function hashCode(code: string): string {
   return crypto.createHash("sha256").update(code).digest("hex");
+}
+
+// ---- Sign-up throttling ----
+// Sign-up has to say when an email is taken, so it's limited per IP to keep
+// anyone from checking addresses in bulk. Every attempt counts.
+
+const MAX_SIGNUPS_PER_IP = 10;
+
+export async function signupAllowed(ip: string): Promise<boolean> {
+  const key = `signup-ip:${ip}`;
+  const since = new Date(Date.now() - WINDOW_MS);
+  if ((await prisma.loginAttempt.count({ where: { key, createdAt: { gt: since } } })) >= MAX_SIGNUPS_PER_IP) return false;
+  await prisma.loginAttempt.create({ data: { key } });
+  return true;
+}
+
+export const TOO_MANY_SIGNUPS = "too many sign-up attempts; wait 15 minutes and try again";
+
+// ---- Passwords ----
+
+// A real bcrypt hash (cost 12) of a random value, compared against when the
+// email doesn't exist, so an unknown email takes as long as a wrong password.
+const DUMMY_HASH = "$2a$12$zOp6deEaHthxINr08q1CsO1pK1m1gjgsqgC7hjGpmgR9lQ771eIny";
+
+export async function passwordMatches(hash: string | undefined, password: string): Promise<boolean> {
+  const ok = await bcrypt.compare(password, hash ?? DUMMY_HASH);
+  return Boolean(hash) && ok;
 }

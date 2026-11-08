@@ -174,4 +174,53 @@ describe("connecting an AI (OAuth 2.1 + PKCE)", () => {
     expect(res.headers["x-frame-options"]).toBe("DENY");
     expect(res.headers["content-security-policy"]).toContain("frame-ancestors 'none'");
   });
+
+  it("gives short-lived access tokens and single-use refresh tokens", async () => {
+    const user = await signUpUser();
+    const clientId = await register();
+    const { verifier, challenge } = pkce();
+    const { code } = await connect(clientId, user, challenge);
+    const first = (await exchange(clientId, code, verifier)).body;
+    expect(first.expires_in).toBe(3600);
+    expect(first.refresh_token).toBeTypeOf("string");
+
+    const renew = (refreshToken: string, client = clientId) =>
+      api().post("/oauth/token").type("form").send({ grant_type: "refresh_token", refresh_token: refreshToken, client_id: client });
+    expect((await renew(first.refresh_token, await register())).body.error).toBe("invalid_grant"); // another app
+    const second = await renew(first.refresh_token);
+    expect(second.status).toBe(200);
+    expect((await renew(first.refresh_token)).body.error).toBe("invalid_grant"); // used already
+    expect((await callTool(first.access_token, "list_my_authorizations", {})).status).toBe(401); // replaced
+    expect((await callTool(second.body.access_token, "list_my_authorizations", {})).status).toBe(200);
+
+    const both = await Promise.all([renew(second.body.refresh_token), renew(second.body.refresh_token)]);
+    expect(both.map((r) => r.status).sort()).toEqual([200, 400]);
+  });
+
+  it("refuses an expired access token and tells the app to renew it", async () => {
+    const user = await signUpUser();
+    const clientId = await register();
+    const { verifier, challenge } = pkce();
+    const { code } = await connect(clientId, user, challenge);
+    const token = (await exchange(clientId, code, verifier)).body;
+    await prisma.agent.updateMany({ where: { userId: user.id }, data: { accessExpiresAt: new Date(Date.now() - 1000) } });
+    const res = await callTool(token.access_token, "list_my_authorizations", {});
+    expect(res.status).toBe(401);
+    expect(res.headers["www-authenticate"]).toContain('error="invalid_token"');
+    expect(res.headers["www-authenticate"]).toContain("/.well-known/oauth-protected-resource");
+  });
+
+  it("can't renew a connection the person disconnected", async () => {
+    const user = await signUpUser();
+    const clientId = await register();
+    const { verifier, challenge } = pkce();
+    const { code } = await connect(clientId, user, challenge);
+    const token = (await exchange(clientId, code, verifier)).body;
+    await prisma.agent.updateMany({ where: { userId: user.id }, data: { revokedAt: new Date() } });
+    const res = await api()
+      .post("/oauth/token")
+      .type("form")
+      .send({ grant_type: "refresh_token", refresh_token: token.refresh_token, client_id: clientId });
+    expect(res.body.error).toBe("invalid_grant");
+  });
 });

@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { z } from "zod";
 import { escapeHtml, page } from "../lib/htmlPage";
@@ -6,7 +5,7 @@ import { generateAuthorizationCode, getBrowserSessionUserId, OAUTH_SESSION_COOKI
 import { pairwiseUserId } from "../lib/pairwise";
 import { PartnerRequest, requirePartner } from "../lib/partnerAuth";
 import { prisma } from "../lib/prisma";
-import { clearLoginFailures, clientIp, cookieOptions, csrfField, csrfValid, hashCode, loginAllowed, recordLoginFailure } from "../lib/security";
+import { clearLoginFailures, clientIp, passwordMatches, cookieOptions, csrfField, csrfValid, hashCode, loginAllowed, recordLoginFailure } from "../lib/security";
 
 // Case 2 from STRATEGY.md's "what 'the agent logs in' actually means": a
 // one-time, human-driven confirmation that an Assentry user is the same person
@@ -52,7 +51,7 @@ linkRouter.get("/authorize", async (req, res) => {
 
   const hidden = hiddenLinkFields({ partner_id, redirect_uri, state });
 
-  const sessionUserId = getBrowserSessionUserId(req);
+  const sessionUserId = await getBrowserSessionUserId(req);
   if (!sessionUserId) {
     return res.send(
       page(
@@ -107,7 +106,7 @@ linkRouter.post("/login", async (req, res) => {
   const allowed = await loginAllowed(email, ip);
 
   const user = allowed ? await prisma.user.findUnique({ where: { email } }) : null;
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+  if (!(await passwordMatches(user?.passwordHash, password)) || !user) {
     if (allowed) await recordLoginFailure(email, ip);
     return res
       .status(allowed ? 401 : 429)
@@ -127,7 +126,7 @@ linkRouter.post("/login", async (req, res) => {
   }
 
   await clearLoginFailures(email);
-  res.cookie(OAUTH_SESSION_COOKIE, signOAuthSession(user.id), cookieOptions(req, 15 * 60 * 1000));
+  res.cookie(OAUTH_SESSION_COOKIE, signOAuthSession(user.id, user.sessionVersion), cookieOptions(req, 15 * 60 * 1000));
 
   const qs = new URLSearchParams(linkParams).toString();
   res.redirect(`/link/authorize?${qs}`);
@@ -161,7 +160,7 @@ linkRouter.post("/authorize", async (req, res) => {
     return res.redirect(`${redirect_uri}?${qs}`);
   }
 
-  const userId = getBrowserSessionUserId(req);
+  const userId = await getBrowserSessionUserId(req);
   if (!userId) {
     return res.status(401).send(page("Session expired", "<p>Your session expired. Go back and log in again.</p>"));
   }

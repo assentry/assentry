@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { z } from "zod";
 import { escapeHtml, page } from "../lib/htmlPage";
@@ -17,6 +16,7 @@ import {
   csrfValid,
   hashCode,
   loginAllowed,
+  passwordMatches,
   recordLoginFailure,
 } from "../lib/security";
 
@@ -177,7 +177,7 @@ oauthAuthorizeRouter.post("/login", async (req, res) => {
   const allowed = await loginAllowed(email, ip);
 
   const user = allowed ? await prisma.user.findUnique({ where: { email } }) : null;
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+  if (!(await passwordMatches(user?.passwordHash, password)) || !user) {
     if (allowed) await recordLoginFailure(email, ip);
     return res
       .status(allowed ? 401 : 429)
@@ -197,7 +197,7 @@ oauthAuthorizeRouter.post("/login", async (req, res) => {
   }
 
   await clearLoginFailures(email);
-  res.cookie(OAUTH_SESSION_COOKIE, signOAuthSession(user.id), cookieOptions(req, 15 * 60 * 1000));
+  res.cookie(OAUTH_SESSION_COOKIE, signOAuthSession(user.id, user.sessionVersion), cookieOptions(req, 15 * 60 * 1000));
 
   const qs = new URLSearchParams(oauthParams).toString();
   res.redirect(`/oauth/authorize?${qs}`);

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { approveSignIn } from "../src/lib/signIn";
 import {
+  allowPendingSite,
   api,
   callTool,
   collect,
@@ -51,7 +52,9 @@ describe("browser sign-in codes", () => {
     const { site, agent } = await setup();
     const { requestId, code } = await startCode(site.apiKey);
     expect((await collect(site.apiKey, requestId)).status).toBe("pending");
-    expect((await approveSignIn(agent.id, code, site.domain)).ok).toBe(true);
+    expect(await approveSignIn(agent.id, code, site.domain)).toMatchObject({ ok: true, awaitingPerson: true });
+    expect(await collect(site.apiKey, requestId)).toMatchObject({ status: "pending", waitingFor: "person" });
+    await allowPendingSite(site.domain);
     const collected = await collect(site.apiKey, requestId);
     expect(collected.status).toBe("approved");
     expect(collected.credential).toBeTypeOf("string");
@@ -86,6 +89,7 @@ describe("browser sign-in codes", () => {
     const { site, agent } = await setup();
     const { requestId, code } = await startCode(site.apiKey);
     await approveSignIn(agent.id, code, site.domain);
+    await allowPendingSite(site.domain);
     const [a, b] = await Promise.all([collect(site.apiKey, requestId), collect(site.apiKey, requestId)]);
     expect([a.status, b.status].sort()).toEqual(["already_collected", "approved"]);
   });
@@ -103,6 +107,7 @@ describe("browser sign-in codes", () => {
     const other = await createSite(dev.token);
     const { requestId, code } = await startCode(site.apiKey);
     await approveSignIn(agent.id, code, site.domain);
+    await allowPendingSite(site.domain);
     expect((await collect(other.apiKey, requestId)).status).toBe("not_found");
     expect((await collect(site.apiKey, requestId)).status).toBe("approved");
   });
@@ -140,6 +145,8 @@ describe("browser sign-in codes", () => {
     const res = await callTool(agent.token, "approve_sign_in", { code, siteDomain: site.domain });
     expect(res.status).toBe(200);
     expect(res.body.result.isError).toBeFalsy();
+    expect(res.body.result.content[0].text).toContain("allow this site");
+    await allowPendingSite(site.domain);
     expect((await collect(site.apiKey, requestId)).status).toBe("approved");
 
     expect((await callTool("agent_not-a-real-token", "list_my_authorizations", {})).status).toBe(401);

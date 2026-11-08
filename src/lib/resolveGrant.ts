@@ -1,6 +1,7 @@
 import { Agent, Grant, Partner, User } from "@prisma/client";
 import { decodeCredential } from "./credential";
 import { prisma } from "./prisma";
+import { siteAllowed } from "./siteApproval";
 
 export type GrantDenialReason =
   | "invalid_credential"
@@ -9,6 +10,7 @@ export type GrantDenialReason =
   | "revoked"
   | "agent_revoked"
   | "sign_in_ended"
+  | "site_not_allowed"
   | "expired";
 
 export type GrantResolution =
@@ -30,7 +32,7 @@ export type GrantResolution =
 // still holds.
 export async function resolveGrant(
   credential: string,
-  partner: Pick<Partner, "domain" | "domainVerifiedAt">
+  partner: Pick<Partner, "id" | "domain" | "domainVerifiedAt">
 ): Promise<GrantResolution> {
   const payload = await decodeCredential(credential);
   if (!payload) return { valid: false, reason: "invalid_credential" };
@@ -50,6 +52,11 @@ export async function resolveGrant(
   if (grant.revokedAt) return { valid: false, reason: "revoked", grant, agent, user };
   if (agent.revokedAt) return { valid: false, reason: "agent_revoked", grant, agent, user };
   if (grant.expiresAt.getTime() < Date.now()) return { valid: false, reason: "expired", grant, agent, user };
+
+  // The person can remove a site at any time; it loses access at once.
+  if (!(await siteAllowed(user.id, partner.id))) {
+    return { valid: false, reason: "site_not_allowed", grant, agent, user };
+  }
 
   if (payload.signInId) {
     const signIn = await prisma.signInRequest.findUnique({ where: { id: payload.signInId } });

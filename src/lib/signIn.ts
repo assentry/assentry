@@ -4,6 +4,7 @@ import { normaliseDomain } from "./domain";
 import { pairwiseAgentId, pairwiseUserId } from "./pairwise";
 import { requestMissingDetails, type MissingDetail } from "./profile";
 import { prisma } from "./prisma";
+import { askPersonAboutSite, siteStatus } from "./siteApproval";
 
 // Codes are copied by agents, never typed by people, so they're long and
 // random rather than memorable: "asq_" + 52 characters from a 31-symbol
@@ -13,6 +14,10 @@ const PREFIX = "asq_";
 const ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const CODE_LENGTH = 52;
 const SIGN_IN_TTL_MS = 5 * 60 * 1000;
+// When the person first has to allow the site in the app, the code waits longer.
+const AWAITING_PERSON_TTL_MS = 10 * 60 * 1000;
+// A request approved just before it expired can still be collected briefly.
+const COLLECT_GRACE_MS = 60 * 1000;
 
 function randomCode(): string {
   let out = "";
@@ -62,7 +67,8 @@ export async function startSignIn(partnerId: string) {
 }
 
 export type ApproveOutcome =
-  | { ok: true; siteName: string; siteDomain: string; sharedFields: string[]; missing: MissingDetail[] }
+  | { ok: true; siteName: string; siteDomain: string; sharedFields: string[]; missing: MissingDetail[]; awaitingPerson?: false }
+  | { ok: true; siteName: string; siteDomain: string; awaitingPerson: true }
   | { ok: false; error: "domain_mismatch"; codeDomain: string }
   | {
       ok: false;
@@ -124,6 +130,16 @@ export async function approveSignIn(
   });
   if (claimed.count === 0) return { ok: false, error: "code_already_used" };
 
+  // The first time any of this person's agents signs in to this site, the
+  // person allows it in the app; until then the site can't collect.
+  const awaitingPerson = (await askPersonAboutSite(grant.userId, request.partnerId, agentId)) !== "allowed";
+  if (awaitingPerson) {
+    await prisma.signInRequest.update({
+      where: { id: request.id },
+      data: { expiresAt: new Date(Math.max(request.expiresAt.getTime(), Date.now() + AWAITING_PERSON_TTL_MS)) },
+    });
+  }
+
   await prisma.auditLog.create({
     data: {
       userId: grant.userId,
@@ -132,10 +148,13 @@ export async function approveSignIn(
       partnerId: request.partnerId,
       action: "sign_in_approved",
       result: "allowed",
-      reason: "ok",
+      reason: awaitingPerson ? "awaiting_person" : "ok",
       metadata: { signInId: request.id },
     },
   });
+  if (awaitingPerson) {
+    return { ok: true, awaitingPerson: true, siteName: request.partner.name, siteDomain: request.partner.domain };
+  }
 
   // Tell the agent what the site will get and what's missing; anything
   // missing becomes an in-app request to the person.
@@ -146,9 +165,9 @@ export async function approveSignIn(
 }
 
 export type CollectOutcome =
-  | { status: "pending"; expiresAt: Date }
+  | { status: "pending"; expiresAt: Date; waitingFor?: "person" }
   | { status: "expired" | "not_found" | "already_collected" }
-  | { status: "denied"; reason: "grant_revoked" | "grant_expired" | "agent_revoked" }
+  | { status: "denied"; reason: "grant_revoked" | "grant_expired" | "agent_revoked" | "person_declined" }
   | { status: "approved"; credential: string; userId: string; agentId: string; expiresAt: Date };
 
 /** The site collects an approved request, once, with its own API key. */
@@ -166,7 +185,7 @@ export async function collectSignIn(partnerId: string, requestId: string): Promi
   }
 
   const grant = request.grant;
-  const deny = (reason: "grant_revoked" | "grant_expired" | "agent_revoked") =>
+  const deny = (reason: "grant_revoked" | "grant_expired" | "agent_revoked" | "person_declined") =>
     prisma.auditLog
       .create({
         data: {
@@ -184,6 +203,11 @@ export async function collectSignIn(partnerId: string, requestId: string): Promi
   if (grant.revokedAt) return deny("grant_revoked");
   if (grant.agent.revokedAt) return deny("agent_revoked");
   if (grant.expiresAt.getTime() < Date.now()) return deny("grant_expired");
+
+  const site = await siteStatus(grant.userId, partnerId);
+  if (site === "declined") return deny("person_declined");
+  if (request.expiresAt.getTime() + COLLECT_GRACE_MS < Date.now()) return { status: "expired" };
+  if (site !== "allowed") return { status: "pending", expiresAt: request.expiresAt, waitingFor: "person" };
 
   const claimed = await prisma.signInRequest.updateMany({
     where: { id: request.id, collectedAt: null },

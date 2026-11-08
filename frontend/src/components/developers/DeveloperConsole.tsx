@@ -206,6 +206,14 @@ export function DeveloperConsole() {
     router.push("/developers/login");
   }
 
+  async function logOutEverywhere() {
+    try {
+      await devApi.post("/developer/auth/logout-everywhere");
+    } finally {
+      logOut();
+    }
+  }
+
   if (!developer) {
     // First visit in this tab: the console's frame, with placeholders, until the server answers.
     return (
@@ -250,6 +258,7 @@ export function DeveloperConsole() {
       go={go}
       email={developer.email}
       onLogOut={logOut}
+      onLogOutEverywhere={logOutEverywhere}
       onClose={() => setMobileOpen(false)}
     />
   );
@@ -461,6 +470,7 @@ function ConsoleSidebar({
   go,
   email,
   onLogOut,
+  onLogOutEverywhere,
   onClose,
 }: {
   apps: DeveloperApp[];
@@ -468,6 +478,7 @@ function ConsoleSidebar({
   go: (v: View) => void;
   email: string;
   onLogOut: () => void;
+  onLogOutEverywhere: () => void;
   onClose: () => void;
 }) {
   return (
@@ -529,6 +540,9 @@ function ConsoleSidebar({
         <p className="truncate px-3 pt-2 text-xs text-slate-500">{email}</p>
         <button onClick={onLogOut} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200">
           <LogOut className="h-4 w-4" /> Log out
+        </button>
+        <button onClick={onLogOutEverywhere} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-white/5 hover:text-slate-300">
+          <span className="w-4" /> Log out on every device
         </button>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { app } from "../src/app";
 import { approveSignIn } from "../src/lib/signIn";
 import { prisma } from "../src/lib/prisma";
 import { generateSecret, hashSecret } from "../src/lib/secrets";
+import { signUserSession } from "../src/lib/userAuth";
 
 export const api = () => request(app);
 export { prisma };
@@ -80,9 +81,20 @@ export async function signIn(site: { apiKey: string; domain: string }, agentId: 
   const { requestId, code } = await startCode(site.apiKey);
   const approved = await approveSignIn(agentId, code, site.domain, grantId);
   if (!approved.ok) throw new Error(`approve failed: ${JSON.stringify(approved)}`);
+  if (approved.awaitingPerson) await allowPendingSite(site.domain);
   const collected = await collect(site.apiKey, requestId);
   if (collected.status !== "approved") throw new Error(`collect failed: ${JSON.stringify(collected)}`);
   return collected as { status: "approved"; credential: string; userId: string; agentId: string };
+}
+
+/** The person presses "Allow" for a site waiting on them, as they would in the app. */
+export async function allowPendingSite(domain: string) {
+  const row = await prisma.siteApproval.findFirstOrThrow({ where: { partner: { domain }, allowedAt: null } });
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: row.userId } });
+  const res = await api()
+    .post(`/me/sites/${row.id}/allow`)
+    .set("Authorization", `Bearer ${signUserSession(user.id, user.sessionVersion)}`);
+  if (res.status !== 200) throw new Error(`allow failed: ${res.status}`);
 }
 
 export async function verify(apiKey: string, credential: string) {

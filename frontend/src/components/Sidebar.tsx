@@ -20,12 +20,14 @@ export function Sidebar({
   onTabChange,
   email,
   onSignOut,
+  onSignOutEverywhere,
   badges = {},
 }: {
   tab: Tab;
   onTabChange: (tab: Tab) => void;
   email: string;
   onSignOut: () => void;
+  onSignOutEverywhere: () => void;
   badges?: Partial<Record<Tab, number>>;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -83,6 +85,13 @@ export function Sidebar({
         >
           <LogOut className="h-4 w-4" strokeWidth={2} />
           Sign out
+        </button>
+        <button
+          onClick={onSignOutEverywhere}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 transition-colors hover:bg-white/5 hover:text-slate-300"
+        >
+          <span className="w-4" />
+          Sign out on every device
         </button>
       </div>
     </>

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { approveSignIn } from "../src/lib/signIn";
 import { suggestDetail } from "../src/lib/agentDetails";
 import {
+  allowPendingSite,
   api,
   connectAgent,
   createSite,
@@ -99,6 +100,7 @@ describe("what a site receives", () => {
     const { user, agent } = await person(["employer"]);
     const { requestId, code } = await startCode(site.apiKey);
     await approveSignIn(agent.id, code, site.domain);
+    await allowPendingSite(site.domain);
     const collected = (await api().post("/sign-in-requests/collect").set("x-assentry-api-key", site.apiKey).send({ requestId })).body;
 
     expect((await suggestDetail(agent.id, "employer", "Acme")).ok).toBe(true);

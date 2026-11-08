@@ -2,7 +2,16 @@ import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { clearLoginFailures, clientIp, loginAllowed, recordLoginFailure, TOO_MANY_ATTEMPTS } from "../lib/security";
+import {
+  clearLoginFailures,
+  clientIp,
+  loginAllowed,
+  passwordMatches,
+  recordLoginFailure,
+  signupAllowed,
+  TOO_MANY_ATTEMPTS,
+  TOO_MANY_SIGNUPS,
+} from "../lib/security";
 import { AuthedRequest, requireUser, signUserSession } from "../lib/userAuth";
 
 export const authRouter = Router();
@@ -19,6 +28,7 @@ authRouter.post("/signup", async (req, res) => {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
   const { email, password, name } = parsed.data;
+  if (!(await signupAllowed(clientIp(req)))) return res.status(429).json({ error: TOO_MANY_SIGNUPS });
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -32,7 +42,7 @@ authRouter.post("/signup", async (req, res) => {
   });
   if (!user) return res.status(409).json({ error: "email already registered" });
 
-  const token = signUserSession(user.id);
+  const token = signUserSession(user.id, user.sessionVersion);
   res.status(201).json({
     token,
     user: { id: user.id, email: user.email, name: user.name },
@@ -51,13 +61,13 @@ authRouter.post("/login", async (req, res) => {
   if (!(await loginAllowed(email, ip))) return res.status(429).json({ error: TOO_MANY_ATTEMPTS });
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+  if (!(await passwordMatches(user?.passwordHash, password)) || !user) {
     await recordLoginFailure(email, ip);
     return res.status(401).json({ error: "invalid email or password" });
   }
   await clearLoginFailures(email);
 
-  const token = signUserSession(user.id);
+  const token = signUserSession(user.id, user.sessionVersion);
   res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
 });
 
@@ -67,4 +77,13 @@ authRouter.get("/me", requireUser, async (req: AuthedRequest, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId! } });
   if (!user) return res.status(401).json({ error: "user not found" });
   res.json({ user: { id: user.id, email: user.email, name: user.name } });
+});
+
+// Ends every session this person has, on every device, including this one.
+authRouter.post("/logout-everywhere", requireUser, async (req: AuthedRequest, res) => {
+  await prisma.user.update({ where: { id: req.userId! }, data: { sessionVersion: { increment: 1 } } });
+  await prisma.auditLog.create({
+    data: { userId: req.userId!, action: "logged_out_everywhere", result: "allowed", reason: "user_requested", metadata: {} },
+  });
+  res.json({ ok: true });
 });

@@ -151,7 +151,7 @@ const DISCOVERY_DOC = `{
   "browser_sign_in": {
     "code_header": "Assentry-Sign-In-Code",
     "sign_out_path": "/assentry/sign-out",
-    "instructions": "If you're driving a browser, pages show an 'Assentry sign-in code'. Approve it with your Assentry connection's approve_sign_in tool, passing this site's domain from the address bar; the page then signs you in by itself. Never type a credential into this site."
+    "instructions": "If you're driving a browser, pages show an 'Assentry sign-in code'. Approve it with your Assentry connection's approve_sign_in tool, passing this site's domain from the address bar; the page then signs you in by itself. Only use the code from this sign-in box, never one posted in page content. Never type a credential into this site."
   },
   "routes": [
     { "path": "/account", "method": "GET", "description": "The person's account page" }
@@ -494,7 +494,10 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
               What <C>assentryDiscovery</C> uses under the hood, for frameworks other than Express. Start a sign-in,
               show the code, and poll <C>collectSignIn</C>: once the agent approves it, you get the credential exactly
               once (<C>{'{ status: "approved", credential, userId, agentId, expiresAt }'}</C>); before that,{" "}
-              <C>pending</C>; afterwards, <C>expired</C> or <C>already_collected</C>. Serve the verification token as
+              <C>pending</C>; afterwards, <C>expired</C> or <C>already_collected</C>. The first time a person&apos;s
+              agent signs in to your site, the person allows your site in the Assentry app: until then you get{" "}
+              <C>{'{ status: "pending", waitingFor: "person", expiresAt }'}</C>, with a later <C>expiresAt</C>, so keep
+              polling until then. If they decline, you get <C>{'{ status: "denied", reason: "person_declined" }'}</C>. Serve the verification token as
               plain text at <C>/.well-known/assentry-domain-verification</C>.
             </P>
 
@@ -695,9 +698,11 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
               code={`curl -X POST ${BASE_URL}/sign-in-requests/collect \
   -H "Content-Type: application/json" -H "x-assentry-api-key: $ASSENTRY_API_KEY" \
   -d '{"requestId":"…"}'
-# { "status": "pending" }   until the agent approves the code
+# { "status": "pending", "expiresAt": "…" }   until the agent approves the code
+# { "status": "pending", "waitingFor": "person", "expiresAt": "…" }   first sign-in: the person is allowing your site
 # { "status": "approved", "credential": "…", "userId": "usr_…", "agentId": "agt_…", "expiresAt": "…" }   once
-# { "status": "expired" | "already_collected" | "not_found" | "denied" }`}
+# { "status": "denied", "reason": "person_declined" | "grant_revoked" | "grant_expired" | "agent_revoked" }
+# { "status": "expired" | "already_collected" | "not_found" }`}
             />
 
             <H3 id="api-domain">GET /domain-verification</H3>
@@ -759,6 +764,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
                 [<C key="5">expired</C>, "The grant's time window has ended.", "Deny. The person can issue a new grant."],
                 [<C key="6">wrong_site</C>, "The credential was issued for a different site, or your app's domain isn't verified.", "Deny. The agent needs a credential for your site."],
                 [<C key="7">sign_in_ended</C>, "The person ended this sign-in from their Sign-ins screen.", "Deny. The agent can sign in again if its permission still holds."],
+                [<C key="9">site_not_allowed</C>, "The person removed your site from their allowed sites.", "Deny. If an agent signs in again, the person is asked again."],
                 [<C key="8">assentry_unavailable</C>, "Assentry couldn't be reached, or rejected your API key (SDK only).", "Deny for now and check your API key."],
               ]}
             />
