@@ -582,7 +582,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
             <P>
               Key your accounts on the <C>userId</C> that <C>verify</C> returns. It&apos;s the same for a person every
               time, whichever agent they use and however many times they renew or change their permission. Don&apos;t
-              key on email: people can change it, choose not to share it, and Assentry doesn&apos;t verify it yet.
+              key on email: people can change it or choose not to share it.
               Store the email or name alongside the account if the person shares them, but find the account by{" "}
               <C>userId</C>.
             </P>
@@ -595,8 +595,8 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
               <li>
                 <b>Match it yourself</b>: on their first visit through Assentry, use <C>getProfile</C> (e.g. their
                 email) and your own logic to find the existing account, then save the <C>userId</C> on it so later
-                visits are found by ID. Simple, no extra step for the person. Note that Assentry doesn&apos;t verify
-                emails yet, so treat the match as an unverified claim.
+                visits are found by ID. Simple, no extra step for the person. Only match automatically on details you
+                would trust from your own sign-up form; otherwise use explicit linking.
               </li>
               <li>
                 <b>Explicit linking</b>: a one-time confirmation by the person, while logged in to your site.
