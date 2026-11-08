@@ -3,12 +3,12 @@
 ```mermaid
 flowchart TB
     User(["Person"])
-    App["Personal App (React)"]
+    App["Personal App"]
     Agent["AI Agent (Claude / ChatGPT)"]
     Partner["Partner Website<br/>e.g. Demo Site"]
     DB[("Postgres")]
 
-    subgraph Assentry["Assentry Backend (Render)"]
+    subgraph Assentry["Assentry"]
         direction TB
         Core["Identity / Grants / Audit"]
         OAuthSrv["OAuth 2.1 server<br/>register · authorize · token"]
