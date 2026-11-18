@@ -10,6 +10,7 @@ import {
   type FieldDef,
   type FileValue,
 } from "./fields";
+import { isEmailVerified } from "./emailVerification";
 import { prisma } from "./prisma";
 import { storage } from "./storage";
 
@@ -145,7 +146,7 @@ export interface ReleasedFile {
 
 export interface Release {
   profile: Record<string, unknown>;
-  meta: Record<string, { source: string; updatedAt: string }>;
+  meta: Record<string, { source: string; updatedAt: string; verified?: boolean }>;
   /** Required details the site declared that it isn't getting (missing, or not allowed). */
   missing: string[];
   undeclaredFields: string[];
@@ -194,10 +195,16 @@ export async function releaseFor(
       if (decl.required) out.missing.push(key);
       continue;
     }
+    // An email address is only ever shared once the person has proved it's theirs.
+    const isEmail = !decl.custom && key === "email";
+    if (isEmail && !(await isEmailVerified(grant.userId, String(value.value)))) {
+      if (decl.required) out.missing.push(key);
+      continue;
+    }
     const def = partnerFieldDef(decl);
     out.profile[key] =
       def.type === "file" ? await fileForSite(value.value as unknown as FileValue, partner.id, baseUrl) : value.value;
-    out.meta[key] = { source: value.source, updatedAt: value.updatedAt.toISOString() };
+    out.meta[key] = { source: value.source, updatedAt: value.updatedAt.toISOString(), ...(isEmail ? { verified: true } : {}) };
   }
   return out;
 }
@@ -230,8 +237,12 @@ export interface MissingDetail {
   label: string;
   type: string;
   required: boolean;
-  /** "missing": the person hasn't filled it in. "not_allowed": they have, but their permission doesn't include it. */
-  reason: "missing" | "not_allowed";
+  /**
+   * "missing": the person hasn't filled it in. "not_allowed": they have, but
+   * their permission doesn't include it. "unverified": an email address the
+   * person hasn't yet proved is theirs, so it isn't shared.
+   */
+  reason: "missing" | "not_allowed" | "unverified";
 }
 
 /**
@@ -253,6 +264,10 @@ export async function requestMissingDetails(partner: Partner, grant: Grant): Pro
         create: { userId: grant.userId, partnerId: partner.id, key: pKey, required: decl.required },
         update: { required: decl.required, resolvedAt: null },
       });
+      continue;
+    }
+    if (!decl.custom && decl.key === "email" && !(await isEmailVerified(grant.userId, String(value.value)))) {
+      out.push({ key: decl.key, label: def.label, type: def.type, required: decl.required, reason: "unverified" });
       continue;
     }
     if (!decl.custom && !grant.consentedFields.includes(decl.key)) {

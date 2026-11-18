@@ -2,6 +2,8 @@ import crypto from "crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { FIELD_TYPES, GENERIC_FILE_RULES, personKey, STANDARD_FIELDS, TYPE_FORMATS, type FieldDef, type FileValue } from "../lib/fields";
+import { confirmEmailVerification, sharedEmailStatus, startEmailVerification } from "../lib/emailVerification";
+import { EmailNotConfiguredError, EmailSendError } from "../lib/mailer";
 import { prisma } from "../lib/prisma";
 import {
   deleteFile,
@@ -69,7 +71,35 @@ meRouter.get("/profile", async (req: AuthedRequest, res) => {
       values.map((v) => [v.key, { value: v.value, source: v.source, status: v.status, updatedAt: v.updatedAt }])
     ),
     settings: { agentAutoFill: user.agentAutoFill },
+    emailVerification: await sharedEmailStatus(userId),
   });
+});
+
+// ---- Proving the shared email address is the person's own ----
+
+meRouter.post("/email-verification/start", async (req: AuthedRequest, res) => {
+  try {
+    const outcome = await startEmailVerification(req.userId!);
+    if (!outcome.ok) {
+      const status = outcome.error === "too_many_requests" ? 429 : outcome.error === "already_verified" ? 409 : 400;
+      return res.status(status).json({ error: outcome.error });
+    }
+    res.json({ sentTo: outcome.email, expiresAt: outcome.expiresAt });
+  } catch (err) {
+    if (err instanceof EmailNotConfiguredError || err instanceof EmailSendError) {
+      return res.status(503).json({ error: "couldn't send the email; try again shortly" });
+    }
+    throw err;
+  }
+});
+
+meRouter.post("/email-verification/confirm", async (req: AuthedRequest, res) => {
+  const outcome = await confirmEmailVerification(req.userId!, req.body?.code);
+  if (!outcome.ok) {
+    const status = outcome.error === "too_many_attempts" ? 429 : 400;
+    return res.status(status).json({ error: outcome.error });
+  }
+  res.json({ verified: true, email: outcome.email });
 });
 
 /** Open site requests, for the notice list and badge. */

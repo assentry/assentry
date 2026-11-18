@@ -113,6 +113,19 @@ export async function setDetail(userToken: string, key: string, value: unknown) 
   if (res.status !== 200) throw new Error(`set ${key} failed: ${res.status} ${JSON.stringify(res.body)}`);
 }
 
+/** The person proves their shared email is theirs, using the code "sent" to it. */
+export async function verifyEmail(userToken: string) {
+  const { sentEmails } = await import("../src/lib/mailer");
+  const start = await api().post("/me/email-verification/start").set("Authorization", `Bearer ${userToken}`);
+  if (start.status !== 200) throw new Error(`start failed: ${start.status} ${JSON.stringify(start.body)}`);
+  const code = /\b(\d{6})\b/.exec(sentEmails[sentEmails.length - 1].text)![1];
+  const confirm = await api()
+    .post("/me/email-verification/confirm")
+    .set("Authorization", `Bearer ${userToken}`)
+    .send({ code });
+  if (confirm.status !== 200) throw new Error(`confirm failed: ${confirm.status} ${JSON.stringify(confirm.body)}`);
+}
+
 /** Calls one of the agent connector's tools the way an AI client does (JSON-RPC over HTTP). */
 export async function callTool(agentToken: string, name: string, args: Record<string, unknown>) {
   const res = await api()

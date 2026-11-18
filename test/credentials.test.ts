@@ -118,6 +118,37 @@ describe("credentials", () => {
   });
 });
 
+describe("credentials an agent carries itself (connector)", () => {
+  async function fetchCredential(expiresInMinutes: number) {
+    const user = await signUpUser();
+    const dev = await signUpDeveloper();
+    const site = await createSite(dev.token);
+    const agent = await connectAgent(user.id);
+    const grant = await grantAgent(user.token, agent.id, [], expiresInMinutes);
+    await signIn(site, agent.id); // the person allows the site once
+    const res = await callTool(agent.token, "get_credential", { grantId: grant.id, siteDomain: site.domain });
+    expect(res.body.result.isError).toBeFalsy();
+    const body = JSON.parse(res.body.result.content[0].text);
+    const exp = (jwt.decode(body.credential) as { exp: number }).exp * 1000;
+    return { site, body, exp };
+  }
+
+  it("expire after 15 minutes, even when the permission lasts much longer", async () => {
+    const before = Date.now();
+    const { site, body, exp } = await fetchCredential(60 * 24 * 30);
+    expect(exp).toBeLessThanOrEqual(before + 15 * 60 * 1000 + 2000);
+    expect(exp).toBeGreaterThan(before + 14 * 60 * 1000);
+    expect(new Date(body.expiresAt).getTime()).toBeLessThanOrEqual(before + 15 * 60 * 1000 + 2000);
+    expect(await verify(site.apiKey, body.credential)).toMatchObject({ valid: true });
+  });
+
+  it("never outlive the permission itself", async () => {
+    const before = Date.now();
+    const { exp } = await fetchCredential(5);
+    expect(exp).toBeLessThanOrEqual(before + 5 * 60 * 1000 + 2000);
+  });
+});
+
 describe("per-site IDs", () => {
   it("are stable for one developer and different for another, so sites can't match people up", async () => {
     const user = await signUpUser();

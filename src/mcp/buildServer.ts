@@ -231,7 +231,7 @@ export function buildMcpServerForAgent(agentId: string): McpServer {
 function describeMissing(missing: MissingDetail[]): string {
   if (!missing.length) return "";
   const list = missing
-    .map((m) => `${m.label} (${m.key}, ${m.type}${m.required ? ", required" : ""}${m.reason === "not_allowed" ? ", filled in but not yet allowed for this site" : ""})`)
+    .map((m) => `${m.label} (${m.key}, ${m.type}${m.required ? ", required" : ""}${m.reason === "not_allowed" ? ", filled in but not yet allowed for this site" : m.reason === "unverified" ? ", the person still needs to verify this email address in the Assentry app" : ""})`)
     .join("; ");
   return (
     `Not available to this site yet: ${list}. The person has been asked in the Assentry app. ` +

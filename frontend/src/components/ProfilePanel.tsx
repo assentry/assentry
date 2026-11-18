@@ -44,6 +44,7 @@ interface ProfileData {
   requests: RequestNotice[];
   values: Record<string, Entry>;
   settings: { agentAutoFill: boolean };
+  emailVerification: { email: string; verified: boolean } | null;
 }
 
 const enc = encodeURIComponent;
@@ -107,15 +108,21 @@ export function ProfilePanel({ accountEmail, onNoticesChanged }: { accountEmail:
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             {data.standard
               .filter((f) => (f.group ?? "Other") === group)
-              .map((f) => (
-                <FieldEditor
-                  key={f.key}
-                  field={f}
-                  entry={data.values[f.key]}
-                  initial={f.key === "email" && !data.values.email ? accountEmail : undefined}
-                  onChanged={load}
-                />
-              ))}
+              .map((f) =>
+                f.key === "email" ? (
+                  <div key={f.key} className="space-y-2">
+                    <FieldEditor
+                      field={f}
+                      entry={data.values[f.key]}
+                      initial={!data.values.email ? accountEmail : undefined}
+                      onChanged={load}
+                    />
+                    {data.emailVerification && <EmailVerifier status={data.emailVerification} onChanged={load} />}
+                  </div>
+                ) : (
+                  <FieldEditor key={f.key} field={f} entry={data.values[f.key]} onChanged={load} />
+                )
+              )}
           </div>
         </Card>
       ))}
@@ -230,6 +237,95 @@ function RequestRow({ request, onChanged }: { request: RequestNotice; onChanged:
 }
 
 // ---- One detail ----
+
+const VERIFY_ERRORS: Record<string, string> = {
+  wrong_code: "That code isn't right. Check the email and try again.",
+  code_expired: "That code has expired. Send a new one.",
+  too_many_attempts: "Too many wrong tries. Send a new code.",
+  too_many_requests: "Too many codes sent. Try again in an hour.",
+  email_changed: "Your email changed since that code was sent. Send a new one.",
+  no_pending_code: "Send a code first.",
+};
+
+/** Proving the email shared with sites is the person's own: sites never receive it until then. */
+function EmailVerifier({ status, onChanged }: { status: { email: string; verified: boolean }; onChanged: () => Promise<void> }) {
+  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    setSent(false);
+    setCode("");
+    setMessage(null);
+  }, [status.email]);
+
+  if (status.verified) return <Badge tone="success">Verified</Badge>;
+
+  async function run(fn: () => Promise<unknown>, done?: string) {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await fn();
+      if (done) setMessage({ ok: true, text: done });
+    } catch (err) {
+      const key = err instanceof Error ? err.message : "";
+      setMessage({ ok: false, text: VERIFY_ERRORS[key] ?? "Something went wrong. Try again." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg bg-white/5 p-3 text-sm">
+      <p className="text-slate-300">
+        <Badge tone="warning">Not verified</Badge>{" "}
+        <span className="text-slate-400">Sites won&apos;t receive this email until you confirm it&apos;s yours.</span>
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            run(async () => {
+              await api.post("/me/email-verification/start");
+              setSent(true);
+            }, `We sent a 6-digit code to ${status.email}.`)
+          }
+        >
+          {sent ? "Send a new code" : "Send code"}
+        </Button>
+        {sent && (
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              run(async () => {
+                await api.post("/me/email-verification/confirm", { code });
+                await onChanged();
+              });
+            }}
+          >
+            <Input
+              aria-label="Verification code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              className="w-28"
+            />
+            <Button type="submit" disabled={busy || code.length !== 6}>
+              Verify
+            </Button>
+          </form>
+        )}
+      </div>
+      {message && <p className={`mt-2 ${message.ok ? "text-slate-300" : "text-rose-300"}`}>{message.text}</p>}
+    </div>
+  );
+}
 
 function FieldEditor({
   field,

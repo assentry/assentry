@@ -404,7 +404,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
   | {
       valid: true;
       profile: Record<string, ProfileValue>;
-      meta: Record<string, { source: "person" | "agent"; updatedAt: string }>;
+      meta: Record<string, { source: "person" | "agent"; updatedAt: string; verified?: boolean }>;
       missing?: string[];
       undeclaredFields?: string[];
     }
@@ -519,7 +519,9 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
               In the console, tick the details your site needs and mark each <b>required</b> or <b>optional</b>. Every
               detail has one type, and every type one format, so you always know exactly what you&apos;ll receive.
               People fill their details in once; their agent can suggest missing ones, but nothing an agent suggests
-              is shared until the person confirms it (<C>meta.source</C> tells you which way it came).
+              is shared until the person confirms it (<C>meta.source</C> tells you which way it came). An email
+              address is only shared once the person has verified it with a code sent to that address, so{" "}
+              <C>meta.email.verified</C> is always <C>true</C>.
             </P>
             <DetailsTable />
             <H3>Your own details</H3>
@@ -666,7 +668,7 @@ Link: </.well-known/assentry.json>; rel="assentry-agent-discovery"
   "profile": { "name": "Ada Lovelace", "email": "ada@example.com" },
   "meta": {
     "name": { "source": "person", "updatedAt": "2026-11-06T09:00:00.000Z" },
-    "email": { "source": "agent", "updatedAt": "2026-11-06T09:05:00.000Z" }
+    "email": { "source": "agent", "updatedAt": "2026-11-06T09:05:00.000Z", "verified": true }
   },
   "missing": ["phone_number"]
 }`}

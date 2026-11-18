@@ -31,6 +31,7 @@ model User {
   fieldRequests FieldRequest[]
   files         StoredFile[]
   siteApprovals SiteApproval[]
+  emailVerifications EmailVerification[]
 }
 
 // One profile detail's value. `key` is a standard key ("email"), a person's
@@ -394,4 +395,22 @@ model SiteApproval {
   declinedAt  DateTime?
 
   @@unique([userId, partnerId])
+}
+
+// Proof that the person controls the email address they share with sites.
+// A shared "email" detail is released only if a row here matches that exact
+// address with verifiedAt set, so changing the address needs a new check.
+model EmailVerification {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email      String
+  // HMAC of the six-digit code; cleared once used.
+  codeHash   String?
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, email])
 }

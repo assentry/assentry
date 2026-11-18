@@ -22,6 +22,14 @@ export async function listGrantsForAgent(agentId: string): Promise<AgentGrantSum
   });
 }
 
+// A credential fetched over the connector is carried by the agent itself, so
+// it is kept short: if one is intercepted it can only be replayed at that one
+// site for minutes, not for the life of the permission. Agents fetch a fresh
+// one right before acting. (Browser sign-ins are different: there the
+// credential goes straight to the site's own cookie and never reaches the
+// agent, so it keeps the permission's lifetime.)
+export const DIRECT_CREDENTIAL_TTL_MS = 15 * 60 * 1000;
+
 export type CredentialOutcome =
   | { ok: true; credential: string; expiresAt: Date; siteName: string; site: string }
   | { ok: false; error: "grant_not_found" | "grant_revoked" | "grant_expired" | "unknown_site" }
@@ -52,7 +60,8 @@ export async function issueCredentialForAgentGrant(
     return { ok: false, error: "awaiting_person", siteName: site.name, site: site.domain };
   }
 
-  const credential = await issueCredential({ grantId: grant.id, site: site.domain }, grant.expiresAt);
+  const expiresAt = new Date(Math.min(grant.expiresAt.getTime(), Date.now() + DIRECT_CREDENTIAL_TTL_MS));
+  const credential = await issueCredential({ grantId: grant.id, site: site.domain }, expiresAt);
 
   await prisma.auditLog.create({
     data: {
@@ -67,5 +76,5 @@ export async function issueCredentialForAgentGrant(
     },
   });
 
-  return { ok: true, credential, expiresAt: grant.expiresAt, siteName: site.name, site: site.domain };
+  return { ok: true, credential, expiresAt, siteName: site.name, site: site.domain };
 }

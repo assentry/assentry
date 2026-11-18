@@ -18,7 +18,7 @@ Identity, grant, verification, audit, partner SDK and OAuth-connected agent acce
 
 The marketing site and personal app (consent UI) live in `frontend/` and talk to this API over HTTP via `NEXT_PUBLIC_API_BASE_URL`. Its Agents tab shows the `/mcp` address to paste into an AI's own connector settings. That's the only "setup" a person ever does; everything else happens via the OAuth login/consent redirect.
 
-Partner sites integrate via `@assentry/sdk` ([separate public repo](https://github.com/bioku-QR/assentry-sdk), MIT licensed) rather than calling `/verify` and `/profile` directly: a thin client plus an Express `requireGrant` middleware.
+Partner sites integrate via `@assentry/sdk` ([separate public repo](https://github.com/assentry/assentry-sdk), MIT licensed) rather than calling `/verify` and `/profile` directly: a thin client plus an Express `requireGrant` middleware.
 
 See `scripts/test-oauth-flow.mjs` for a script that plays the real MCP client role end-to-end with no shortcuts (dynamic registration, login, consent, PKCE'd token exchange, and real MCP tool calls over the remote transport), useful for verifying the backend without a real AI client. `scripts/test-account-link.mjs` does the same for the account-linking flow.
 
@@ -38,7 +38,7 @@ Open `http://localhost:3000` for the marketing site and consent UI in dev (hot r
 
 ## Partner handshake example
 
-Via the SDK (recommended; see [assentry-sdk's README](https://github.com/bioku-QR/assentry-sdk)):
+Via the SDK (recommended; see [assentry-sdk's README](https://github.com/assentry/assentry-sdk)):
 
 ```ts
 const assentry = new Assentry({ apiKey: process.env.ASSENTRY_API_KEY!, baseUrl: process.env.ASSENTRY_BASE_URL! });

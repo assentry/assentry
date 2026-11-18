@@ -15,6 +15,7 @@ import {
   signUpDeveloper,
   signUpUser,
   startCode,
+  verifyEmail,
 } from "./helpers";
 
 beforeEach(resetDb);
@@ -33,6 +34,7 @@ describe("what a site receives", () => {
     const { user, agent } = await person(["name", "email"]);
     await setDetail(user.token, "name", "Ada Lovelace");
     await setDetail(user.token, "email", "ada@example.com");
+    await verifyEmail(user.token);
     await setDetail(user.token, "phone_number", "+14155552671");
     await setDetail(user.token, "birthdate", "1990-12-10");
 
